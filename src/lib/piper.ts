@@ -5,10 +5,24 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const MODEL_FILE_NAME = "en_US-ryan-high.onnx";
-const MODEL_CONFIG_FILE_NAME = "en_US-ryan-high.onnx.json";
-const MODEL_BASE_URL =
-  "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/ryan/high";
+interface PiperModelDefinition {
+  id: string;
+  fileName: string;
+  configFileName: string;
+  baseUrl: string;
+}
+
+const PIPER_MODELS: PiperModelDefinition[] = [
+  {
+    id: "en_us-ryan-high",
+    fileName: "en_US-ryan-high.onnx",
+    configFileName: "en_US-ryan-high.onnx.json",
+    baseUrl:
+      "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/ryan/high",
+  },
+];
+
+const DEFAULT_PIPER_MODEL_ID = PIPER_MODELS[0].id;
 const PIPER_RELEASE_TAG = "2023.11.14-2";
 const DOWNLOAD_TIMEOUT_MS = 60000;
 const DOWNLOAD_RETRY_COUNT = 2;
@@ -97,11 +111,41 @@ function buildPiperDownloadUrls(): string[] {
   ];
 }
 
-function buildModelDownloadUrls(fileName: string): string[] {
+function buildModelDownloadUrls(
+  model: PiperModelDefinition,
+  fileName: string,
+): string[] {
   return [
-    `${MODEL_BASE_URL}/${fileName}`,
-    `${MODEL_BASE_URL}/${fileName}?download=true`,
+    `${model.baseUrl}/${fileName}`,
+    `${model.baseUrl}/${fileName}?download=true`,
   ];
+}
+
+function resolveRequestedPiperModelId(explicitModel?: string): string {
+  const configuredModel =
+    explicitModel ??
+    process.env.ANKORE_PIPER_MODEL?.trim() ??
+    process.env.ANKORE_TTS_MODEL?.trim();
+
+  if (!configuredModel) {
+    return DEFAULT_PIPER_MODEL_ID;
+  }
+
+  return configuredModel.toLowerCase();
+}
+
+function resolvePiperModelDefinition(
+  requestedId: string,
+): PiperModelDefinition {
+  const model = PIPER_MODELS.find((candidate) => candidate.id === requestedId);
+  if (!model) {
+    const supportedModels = PIPER_MODELS.map((item) => item.id).join(", ");
+    throw new Error(
+      `Unsupported Piper model "${requestedId}". Supported models: ${supportedModels}.`,
+    );
+  }
+
+  return model;
 }
 
 async function extractTarGz(
@@ -256,7 +300,7 @@ async function resolvePiperExecutable(): Promise<string> {
   );
 }
 
-async function resolvePiperModelPath(): Promise<string> {
+async function resolvePiperModelPath(explicitModel?: string): Promise<string> {
   const configured = process.env.ANKORE_PIPER_MODEL_PATH?.trim();
   if (configured) {
     if (await isReadable(configured)) {
@@ -266,16 +310,20 @@ async function resolvePiperModelPath(): Promise<string> {
     throw new Error(`Piper model not found or unreadable: ${configured}`);
   }
 
+  const requestedModelId = resolveRequestedPiperModelId(explicitModel);
+  const model = resolvePiperModelDefinition(requestedModelId);
+
   const projectRoot = getProjectRoot();
-  const managedDir = path.join(projectRoot, "models", "piper");
+  const managedDir = path.join(projectRoot, "models", "piper", model.id);
   const candidates = [
-    path.join(projectRoot, "models", MODEL_FILE_NAME),
-    path.join(projectRoot, "models", "piper", MODEL_FILE_NAME),
-    path.join(projectRoot, "assets", "piper", MODEL_FILE_NAME),
-    path.join(os.homedir(), ".local", "share", "piper", MODEL_FILE_NAME),
-    path.join(os.homedir(), ".cache", "piper", MODEL_FILE_NAME),
-    path.join("/usr/local/share/piper", MODEL_FILE_NAME),
-    path.join("/usr/share/piper", MODEL_FILE_NAME),
+    path.join(projectRoot, "models", model.fileName),
+    path.join(projectRoot, "models", "piper", model.fileName),
+    path.join(projectRoot, "models", "piper", model.id, model.fileName),
+    path.join(projectRoot, "assets", "piper", model.fileName),
+    path.join(os.homedir(), ".local", "share", "piper", model.fileName),
+    path.join(os.homedir(), ".cache", "piper", model.fileName),
+    path.join("/usr/local/share/piper", model.fileName),
+    path.join("/usr/share/piper", model.fileName),
   ];
 
   for (const candidate of candidates) {
@@ -284,7 +332,7 @@ async function resolvePiperModelPath(): Promise<string> {
     }
   }
 
-  return ensureManagedModelDownloaded(managedDir);
+  return ensureManagedModelDownloaded(managedDir, model);
 }
 
 async function downloadWithFetch(
@@ -397,9 +445,10 @@ async function downloadFile(urls: string[], outputPath: string): Promise<void> {
 
 async function ensureManagedModelDownloaded(
   managedDir: string,
+  model: PiperModelDefinition,
 ): Promise<string> {
-  const modelPath = path.join(managedDir, MODEL_FILE_NAME);
-  const configPath = path.join(managedDir, MODEL_CONFIG_FILE_NAME);
+  const modelPath = path.join(managedDir, model.fileName);
+  const configPath = path.join(managedDir, model.configFileName);
 
   if ((await isReadable(modelPath)) && (await isReadable(configPath))) {
     return modelPath;
@@ -409,12 +458,15 @@ async function ensureManagedModelDownloaded(
 
   try {
     if (!(await isReadable(modelPath))) {
-      await downloadFile(buildModelDownloadUrls(MODEL_FILE_NAME), modelPath);
+      await downloadFile(
+        buildModelDownloadUrls(model, model.fileName),
+        modelPath,
+      );
     }
 
     if (!(await isReadable(configPath))) {
       await downloadFile(
-        buildModelDownloadUrls(MODEL_CONFIG_FILE_NAME),
+        buildModelDownloadUrls(model, model.configFileName),
         configPath,
       );
     }
@@ -424,7 +476,7 @@ async function ensureManagedModelDownloaded(
     await rm(modelPath, { force: true }).catch(() => undefined);
     await rm(configPath, { force: true }).catch(() => undefined);
     throw new Error(
-      `Unable to auto-download Piper model ${MODEL_FILE_NAME}. ${
+      `Unable to auto-download Piper model ${model.fileName}. ${
         error instanceof Error ? error.message : String(error)
       }`,
     );
@@ -442,6 +494,7 @@ async function ensureModelExists(modelPath: string): Promise<void> {
 export async function generateSpeech(
   text: string,
   outputWav: string,
+  options: { model?: string } = {},
 ): Promise<void> {
   const spokenText = text.trim();
   if (!spokenText) {
@@ -449,7 +502,7 @@ export async function generateSpeech(
   }
 
   const piperBin = await resolvePiperExecutable();
-  const modelPath = await resolvePiperModelPath();
+  const modelPath = await resolvePiperModelPath(options.model);
   await ensureModelExists(modelPath);
 
   if (await isReadable(piperBin)) {

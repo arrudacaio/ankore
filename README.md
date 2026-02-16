@@ -44,8 +44,10 @@ Variaveis de ambiente para audio local:
 - `ANKORE_PIPER_BIN` (opcional): use somente se o binario Piper estiver em local customizado
 - `ANKORE_FFMPEG_BIN` (opcional): use somente se o binario ffmpeg estiver em local customizado
 - `ANKORE_TTS_STRATEGY` (opcional): estrategia de TTS (`piper`)
+- `ANKORE_TTS_MODEL` (opcional): modelo de voz para a estrategia selecionada (ex: `en_us-ryan-high`)
 - `ANKORE_AUDIO_PLAYER` (opcional): define player para preview de audio (ex: `ffplay`, `mpg123`, `afplay`)
 - `ANKORE_AUDIO_PLAYER_ARGS` (opcional): argumentos extras para `ANKORE_AUDIO_PLAYER`
+- `ANKORE_PIPER_MODEL` (opcional): atalho especifico do Piper para escolher modelo por ID
 
 Deteccao automatica (sem configurar PATH):
 
@@ -105,6 +107,8 @@ Ao importar o arquivo `.tsv`:
 ## Estrutura do projeto
 
 - `src/index.ts`: orquestracao do fluxo CLI
+- `src/modes/registry.ts`: registry de modos para facilitar extensao
+- `src/modes/index.ts`: ponto unico de registro de modos disponiveis
 - `src/lib/ui.ts`: prompts e output visual no terminal
 - `src/lib/word-data.ts`: integracao com APIs e montagem de dados da palavra
 - `src/lib/card-session.ts`: revisao do card e acoes de troca/edicao
@@ -170,6 +174,19 @@ O projeto usa um ciclo automatico de feedback para proteger commits:
 
 O CLI esta preparado para novos modos em `ankore start <modo>`.
 
-- Registro de modos: `src/index.ts`
+- Registro central de modos: `src/modes/index.ts`
+- Contratos e lifecycle dos modos: `src/modes/registry.ts`
 - Implementacao do modo mining: `src/modes/mining/index.ts`
-- Para adicionar novos modos (ex: grammar), basta registrar no `MODE_REGISTRY`.
+- Definicao do modo mining (normalizacao de opcoes): `src/modes/mining/mode.ts`
+- Para adicionar novos modos (ex: grammar), crie `src/modes/<novo>/mode.ts` e registre no array de `src/modes/index.ts`.
+
+## Arquitetura de TTS
+
+O TTS tambem usa registry para facilitar novos provedores e modelos.
+
+- Registro e resolucao de estrategias: `src/lib/tts-strategies.ts`
+- Integracao com Piper e catalogo de modelos: `src/lib/piper.ts`
+- Fluxo de geracao de audio no app: `src/lib/tts.ts`
+
+Para adicionar um novo modelo Piper, inclua uma entrada em `PIPER_MODELS` em `src/lib/piper.ts`.
+Para adicionar um novo provedor TTS, registre uma nova estrategia em `STRATEGIES` em `src/lib/tts-strategies.ts`.

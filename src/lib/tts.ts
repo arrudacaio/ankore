@@ -6,7 +6,10 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildExportPath } from "./session-storage.js";
-import { resolveTtsStrategy } from "./tts-strategies.js";
+import {
+  resolveTtsRuntimeConfig,
+  resolveTtsStrategy,
+} from "./tts-strategies.js";
 
 function stripHtmlTags(value: string): string {
   return value.replace(/<[^>]*>/g, " ");
@@ -215,7 +218,8 @@ export async function generateSentenceAudio({
 }: {
   sentence: string;
 }) {
-  const strategy = resolveTtsStrategy();
+  const runtimeConfig = resolveTtsRuntimeConfig();
+  const strategy = resolveTtsStrategy(runtimeConfig);
   const spokenText = normalizeSpeechText(sentence);
   if (!spokenText) {
     throw new Error("The sentence has no readable text for speech generation.");
@@ -235,7 +239,11 @@ export async function generateSentenceAudio({
   const wavPath = buildExportPath(`ankore-${hash}.wav`);
 
   try {
-    await strategy.generateWav(spokenText, wavPath);
+    await strategy.generateWav({
+      text: spokenText,
+      outputWav: wavPath,
+      model: runtimeConfig.model,
+    });
     await convertWavToMp3(wavPath, filePath);
   } finally {
     await rm(wavPath, { force: true }).catch(() => undefined);

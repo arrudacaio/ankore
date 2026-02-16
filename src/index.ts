@@ -1,26 +1,19 @@
-import { runMiningMode } from "./modes/mining/index.js";
-
-const MODE_REGISTRY = {
-  mining: {
-    run: runMiningMode,
-    description: "Sentence mining para criar cards Anki",
-  },
-};
+import { modeRegistry } from "./modes/index.js";
 
 export function listModes() {
-  return Object.keys(MODE_REGISTRY);
+  return modeRegistry.listNames();
 }
 
 export function listModeDetails() {
-  return Object.entries(MODE_REGISTRY).map(([name, config]) => ({
-    name,
-    description: config.description,
-  }));
+  return modeRegistry.listDetails();
 }
 
-export async function startMode(modeName, options = {}) {
+export async function startMode(
+  modeName: string,
+  options: Record<string, unknown> = {},
+) {
   const modeKey = String(modeName || "").toLowerCase();
-  const mode = MODE_REGISTRY[modeKey];
+  const mode = modeRegistry.get(modeKey);
 
   if (!mode) {
     const availableModes = listModes().join(", ");
@@ -29,5 +22,9 @@ export async function startMode(modeName, options = {}) {
     );
   }
 
-  await mode.run(options);
+  const normalizedOptions = mode.normalizeOptions
+    ? mode.normalizeOptions(options)
+    : options;
+
+  await mode.run(normalizedOptions);
 }
