@@ -46,3 +46,12 @@ export function highlightWordForCli(sentence, word, accentColor) {
   const regex = new RegExp(`\\b(${escapeRegExp(word)})\\b`, "i");
   return sentence.replace(regex, accentColor("$1"));
 }
+
+export function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}

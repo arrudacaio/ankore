@@ -1,5 +1,6 @@
 install:
 	npm install
+	npm link
 
 start:
 	npm start
@@ -11,6 +12,6 @@ check:
 	npm run check
 
 sample-export:
-	node scripts/sample-export.js
+	npm run sample-export
 
 dev: install start

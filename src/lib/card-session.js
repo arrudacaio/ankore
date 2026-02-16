@@ -1,16 +1,28 @@
-import { containsWord, highlightWordForAnki } from "./text.js";
+import { containsWord, escapeHtml, highlightWordForAnki } from "./text.js";
 import { askText, askCardAction, printCardPreview, printDim, printWarning, printSuccess } from "./ui.js";
+import { fetchLiteralTranslationPtBr } from "./translation.js";
 
-export function createCard({ sentence, word, definition, phonetic }) {
-  const compactMeaning = String(definition).trim();
-  const compactPhonetic = String(phonetic).trim();
+export function createCard({ sentence, word, definition, phonetic, literalTranslationPtBr }) {
+  const compactMeaning = escapeHtml(String(definition).trim());
+  const compactPhonetic = escapeHtml(String(phonetic).trim());
+  const compactLiteralTranslation = literalTranslationPtBr
+    ? escapeHtml(String(literalTranslationPtBr).trim())
+    : null;
+
+  const backParts = [
+    `<small>Meaning:</small> ${compactMeaning}`,
+    `<small>Phonetic:</small> <b>${compactPhonetic}</b>`
+  ];
+
+  if (compactLiteralTranslation) {
+    backParts.push(`<small>Literal (pt-BR):</small> ${compactLiteralTranslation}`);
+  }
 
   return {
     front: highlightWordForAnki(sentence, word),
-    back:
-      `<small>Meaning:</small> ${compactMeaning}` +
-      `<br>` +
-      `<small>Phonetic:</small> <b>${compactPhonetic}</b>`
+    back: backParts.join("<br>"),
+    sentence,
+    word
   };
 }
 
@@ -39,12 +51,17 @@ async function promptSentenceWithWord(word) {
 export async function reviewCardCandidate({ word, definition, phonetic, sentenceCandidates, initialSentence }) {
   let sentence = initialSentence;
   let sentenceIndex = sentenceCandidates.findIndex((item) => item === sentence);
+  let literalTranslationPtBr = null;
+  let translationSentenceReference = null;
 
   while (true) {
-    printCardPreview({ sentence, word, definition, phonetic });
+    printCardPreview({ sentence, word, definition, phonetic, literalTranslationPtBr });
     printDim(`Sugestoes de frase disponiveis para ${word}: ${sentenceCandidates.length}`);
 
-    const action = await askCardAction(sentenceCandidates.length > 1);
+    const action = await askCardAction({
+      canSwapSentence: sentenceCandidates.length > 1,
+      hasLiteralTranslation: Boolean(literalTranslationPtBr)
+    });
 
     if (action === "skip") {
       printDim("Card ignorado.");
@@ -65,6 +82,8 @@ export async function reviewCardCandidate({ word, definition, phonetic, sentence
       }
 
       sentence = sentenceCandidates[sentenceIndex];
+      literalTranslationPtBr = null;
+      translationSentenceReference = null;
       printSuccess("Frase sugerida trocada.");
       continue;
     }
@@ -79,9 +98,39 @@ export async function reviewCardCandidate({ word, definition, phonetic, sentence
 
       sentence = customSentence;
       sentenceIndex = -1;
+      literalTranslationPtBr = null;
+      translationSentenceReference = null;
       continue;
     }
 
-    return createCard({ sentence, word, definition, phonetic });
+    if (action === "toggleTranslation") {
+      if (literalTranslationPtBr) {
+        literalTranslationPtBr = null;
+        translationSentenceReference = null;
+        printSuccess("Traducao literal removida do verso.");
+        continue;
+      }
+
+      try {
+        if (translationSentenceReference !== sentence) {
+          printDim("Buscando traducao literal (pt-BR)...");
+          literalTranslationPtBr = await fetchLiteralTranslationPtBr(sentence);
+          translationSentenceReference = sentence;
+        }
+
+        if (!literalTranslationPtBr) {
+          printWarning("Nao foi possivel obter traducao literal para esta frase.");
+          continue;
+        }
+
+        printSuccess("Traducao literal adicionada ao verso.");
+      } catch (error) {
+        printWarning(`Falha na traducao literal: ${error.message}`);
+      }
+
+      continue;
+    }
+
+    return createCard({ sentence, word, definition, phonetic, literalTranslationPtBr });
   }
 }

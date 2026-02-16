@@ -1,5 +1,17 @@
 import { containsWord, normalizeSentence, uniqueSentences } from "./text.js";
 
+function isContextualSentence(sentence, word) {
+  const normalized = normalizeSentence(sentence);
+  const wordCount = normalized.split(" ").filter(Boolean).length;
+
+  return (
+    wordCount >= 4 &&
+    normalized.length >= 20 &&
+    normalized.length <= 220 &&
+    containsWord(normalized, word)
+  );
+}
+
 function pickPhonetic(entry) {
   if (entry.phonetic && entry.phonetic.trim()) {
     return entry.phonetic.trim();
@@ -53,7 +65,7 @@ function pickDefinitionAndExamples(entry, word) {
   };
 }
 
-async function fetchExternalSentences(word) {
+async function fetchQuotableSentences(word) {
   const url = `https://api.quotable.io/search/quotes?query=${encodeURIComponent(word)}&limit=30`;
   const response = await fetch(url);
 
@@ -69,19 +81,30 @@ async function fetchExternalSentences(word) {
   const candidates = data.results
     .map((item) => (item && typeof item.content === "string" ? item.content : ""))
     .map((content) => normalizeSentence(content))
-    .filter((content) => content.length >= 25 && content.length <= 200)
-    .filter((content) => containsWord(content, word));
+    .filter((content) => isContextualSentence(content, word));
 
   return uniqueSentences(candidates);
 }
 
-function buildFallbackSentences(word) {
-  return [
-    `I saw the word ${word} in a news headline this morning.`,
-    `She used ${word} naturally during our conversation.`,
-    `I want to remember how ${word} sounds in context.`,
-    `They repeated ${word} several times in the podcast episode.`
-  ];
+async function fetchTatoebaSentences(word) {
+  const url = `https://tatoeba.org/en/api_v0/search?from=eng&query=${encodeURIComponent(word)}&sort=relevance`;
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    return [];
+  }
+
+  const data = await response.json();
+  if (!data || !Array.isArray(data.results)) {
+    return [];
+  }
+
+  const candidates = data.results
+    .map((item) => (item && typeof item.text === "string" ? item.text : ""))
+    .map((content) => normalizeSentence(content))
+    .filter((content) => isContextualSentence(content, word));
+
+  return uniqueSentences(candidates);
 }
 
 function pickRandomSentence(sentences) {
@@ -95,9 +118,10 @@ function pickRandomSentence(sentences) {
 
 export async function fetchWordData(word) {
   const dictionaryUrl = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`;
-  const [dictionaryResponse, externalSentences] = await Promise.all([
+  const [dictionaryResponse, quotableSentences, tatoebaSentences] = await Promise.all([
     fetch(dictionaryUrl),
-    fetchExternalSentences(word).catch(() => [])
+    fetchQuotableSentences(word).catch(() => []),
+    fetchTatoebaSentences(word).catch(() => [])
   ]);
 
   if (!dictionaryResponse.ok) {
@@ -113,13 +137,15 @@ export async function fetchWordData(word) {
   const { definition, examples } = pickDefinitionAndExamples(entry, word);
   const phonetic = pickPhonetic(entry);
 
-  const fallbackSentences = buildFallbackSentences(word);
-  const sentenceCandidates = uniqueSentences([
-    ...externalSentences,
-    ...examples,
-    ...fallbackSentences
-  ]);
-  const sentence = pickRandomSentence(sentenceCandidates) || `I am learning the word ${word}.`;
+  const sentenceCandidates = uniqueSentences([...tatoebaSentences, ...quotableSentences, ...examples]);
+
+  if (sentenceCandidates.length === 0) {
+    throw new Error(
+      `No contextual sentence found for \"${word}\". Try another word or add one manually after selecting a different word.`
+    );
+  }
+
+  const sentence = pickRandomSentence(sentenceCandidates);
 
   return {
     definition,

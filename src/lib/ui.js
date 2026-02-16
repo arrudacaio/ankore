@@ -59,7 +59,7 @@ export async function askText(message, defaultValue = "") {
   }
 }
 
-export async function askCardAction(canSwapSentence) {
+export async function askCardAction({ canSwapSentence, hasLiteralTranslation }) {
   try {
     return await select({
       message: "Escolha uma acao para este card",
@@ -76,6 +76,12 @@ export async function askCardAction(canSwapSentence) {
         {
           name: `${icons.edit} Editar frase manualmente`,
           value: "edit"
+        },
+        {
+          name: hasLiteralTranslation
+            ? `${icons.info} Remover traducao literal (pt-BR)`
+            : `${icons.info} Incluir traducao literal (pt-BR)`,
+          value: "toggleTranslation"
         },
         {
           name: `${icons.cross} Pular card`,
@@ -127,7 +133,7 @@ export function printTitle() {
   console.log("");
 }
 
-export function printCardPreview({ sentence, word, definition, phonetic }) {
+export function printCardPreview({ sentence, word, definition, phonetic, literalTranslationPtBr }) {
   const width = Math.max((process.stdout.columns || 100) - 14, 46);
   const table = new Table({
     head: [palette.title.bold("Campo"), palette.title.bold("Conteudo")],
@@ -139,10 +145,13 @@ export function printCardPreview({ sentence, word, definition, phonetic }) {
     }
   });
 
-  table.push(
-    ["Front", highlightWordForCli(sentence, word, palette.accent.bold)],
-    ["Back", `Meaning: ${definition}\nPhonetic: ${phonetic}`]
-  );
+  const backPreviewLines = [`Meaning: ${definition}`, `Phonetic: ${phonetic}`];
+
+  if (literalTranslationPtBr) {
+    backPreviewLines.push(`Literal (pt-BR): ${literalTranslationPtBr}`);
+  }
+
+  table.push(["Front", highlightWordForCli(sentence, word, palette.accent.bold)], ["Back", backPreviewLines.join("\n")]);
 
   console.log(`${palette.accent.bold(icons.pointer)} Preview do card`);
   console.log(table.toString());
