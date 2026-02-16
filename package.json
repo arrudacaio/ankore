@@ -12,6 +12,7 @@
     "start": "npm run build && node dist/cli.js start",
     "watch": "npm run build && node dist/cli.js start --watch",
     "sample-export": "npm run build && node dist/cli.js sample-export",
+    "doctor": "npm run build && node dist/cli.js doctor",
     "check": "npm run build && node --check dist/cli.js && node --check dist/index.js && node --check dist/modes/mining/index.js",
     "typecheck": "tsc",
     "test": "vitest run",
@@ -29,6 +30,7 @@
     "ffmpeg-static": "^5.2.0",
     "figures": "^6.1.0",
     "ora": "^8.2.0",
+    "reverso-api": "^2.22.10",
     "supports-color": "^10.2.2"
   },
   "keywords": [

@@ -1,5 +1,53 @@
 import { containsWord, normalizeSentence, uniqueSentences } from "./text.js";
 
+type ReversoContextExample = {
+  source?: string;
+};
+
+type ReversoContextResponse = {
+  ok?: boolean;
+  examples?: ReversoContextExample[];
+};
+
+type ReversoClient = {
+  getContext: (
+    text: string,
+    source: string,
+    target: string,
+  ) => Promise<ReversoContextResponse>;
+};
+
+let reversoClientPromise: Promise<ReversoClient | null> | null = null;
+
+async function getReversoClient(): Promise<ReversoClient | null> {
+  if (reversoClientPromise) {
+    return reversoClientPromise;
+  }
+
+  reversoClientPromise = (async () => {
+    try {
+      const reversoModule = await import("reverso-api");
+      const ReversoConstructor =
+        "default" in reversoModule ? reversoModule.default : reversoModule;
+
+      if (typeof ReversoConstructor !== "function") {
+        return null;
+      }
+
+      const instance = new ReversoConstructor();
+      if (!instance || typeof instance.getContext !== "function") {
+        return null;
+      }
+
+      return instance as ReversoClient;
+    } catch {
+      return null;
+    }
+  })();
+
+  return reversoClientPromise;
+}
+
 function isContextualSentence(sentence: string, word: string): boolean {
   const normalized = normalizeSentence(sentence);
   const wordCount = normalized.split(" ").filter(Boolean).length;
@@ -115,6 +163,25 @@ async function fetchTatoebaSentences(word: string): Promise<string[]> {
   return uniqueSentences(candidates);
 }
 
+async function fetchReversoSentences(word: string): Promise<string[]> {
+  const reverso = await getReversoClient();
+  if (!reverso) {
+    return [];
+  }
+
+  const response = await reverso.getContext(word, "english", "portuguese");
+  if (!response || response.ok === false || !Array.isArray(response.examples)) {
+    return [];
+  }
+
+  const candidates = response.examples
+    .map((item) => (item && typeof item.source === "string" ? item.source : ""))
+    .map((content) => normalizeSentence(content))
+    .filter((content) => isContextualSentence(content, word));
+
+  return uniqueSentences(candidates);
+}
+
 function pickRandomSentence(sentences: string[]): string | null {
   if (sentences.length === 0) {
     return null;
@@ -130,12 +197,17 @@ function isMultiWordExpression(value: string): boolean {
 
 export async function fetchWordData(word: string): Promise<WordDataResult> {
   const dictionaryUrl = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`;
-  const [dictionaryResponse, quotableSentences, tatoebaSentences] =
-    await Promise.all([
-      fetch(dictionaryUrl),
-      fetchQuotableSentences(word).catch(() => []),
-      fetchTatoebaSentences(word).catch(() => []),
-    ]);
+  const [
+    dictionaryResponse,
+    reversoSentences,
+    quotableSentences,
+    tatoebaSentences,
+  ] = await Promise.all([
+    fetch(dictionaryUrl),
+    fetchReversoSentences(word).catch(() => []),
+    fetchQuotableSentences(word).catch(() => []),
+    fetchTatoebaSentences(word).catch(() => []),
+  ]);
 
   const allowDictionaryFallback = isMultiWordExpression(word);
 
@@ -163,6 +235,7 @@ export async function fetchWordData(word: string): Promise<WordDataResult> {
   }
 
   const sentenceCandidates = uniqueSentences([
+    ...reversoSentences,
     ...tatoebaSentences,
     ...quotableSentences,
     ...examples,

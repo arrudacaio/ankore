@@ -1,10 +1,5 @@
 export {};
 
-declare module "ffplay-static" {
-  const ffplayPath: string;
-  export default ffplayPath;
-}
-
 declare global {
   type DeepReadonly<T> = {
     readonly [K in keyof T]: T[K] extends object

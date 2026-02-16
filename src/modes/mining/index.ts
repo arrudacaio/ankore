@@ -1,7 +1,4 @@
-import { access, copyFile, writeFile } from "node:fs/promises";
-import { constants } from "node:fs";
-import os from "node:os";
-import path from "node:path";
+import { writeFile } from "node:fs/promises";
 import ora from "ora";
 import {
   buildAnkiImportFile,
@@ -14,6 +11,7 @@ import {
 } from "../../lib/session-storage.js";
 import { generateSentenceAudio } from "../../lib/tts.js";
 import { playAudioPreview } from "../../lib/audio-player.js";
+import { addCardToAnki, getAnkiConnectStatus } from "../../lib/anki-connect.js";
 import {
   printDim,
   printInfo,
@@ -45,100 +43,22 @@ async function writeAnkiFile(
     const content = buildAnkiImportFile(cards);
     await writeFile(outputPath, content, "utf8");
 
-    const mediaFiles = cards
+    const mediaFileCount = cards
       .map((card) => card.audioFileName)
       .filter(
         (value): value is string =>
           typeof value === "string" && value.length > 0,
       )
-      .filter((value, index, list) => list.indexOf(value) === index);
+      .filter((value, index, list) => list.indexOf(value) === index).length;
 
     spinner.succeed(`${icons.tick} Arquivo gerado: ${outputPath}`);
-    if (mediaFiles.length > 0) {
-      printInfo(
-        `Midias disponiveis em session-output/exports: ${mediaFiles.length}`,
-      );
-      await optionallySyncMediaToAnki(mediaFiles);
+    if (mediaFileCount > 0) {
+      printInfo(`Midias geradas em session-output/exports: ${mediaFileCount}`);
     }
   } catch (error) {
     spinner.fail(`${icons.cross} Falha ao gerar arquivo: ${error.message}`);
     throw error;
   }
-}
-
-async function pathExists(targetPath: string): Promise<boolean> {
-  try {
-    await access(targetPath, constants.F_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function detectDefaultAnkiMediaDir(): Promise<string> {
-  const envPath = process.env.ANKORE_ANKI_MEDIA_DIR;
-  if (envPath && (await pathExists(envPath))) {
-    return envPath;
-  }
-
-  const home = os.homedir();
-  const linuxDefault = path.join(
-    home,
-    ".local",
-    "share",
-    "Anki2",
-    "User 1",
-    "collection.media",
-  );
-  const macDefault = path.join(
-    home,
-    "Library",
-    "Application Support",
-    "Anki2",
-    "User 1",
-    "collection.media",
-  );
-
-  if (await pathExists(linuxDefault)) {
-    return linuxDefault;
-  }
-
-  if (await pathExists(macDefault)) {
-    return macDefault;
-  }
-
-  return "";
-}
-
-async function optionallySyncMediaToAnki(mediaFiles: string[]): Promise<void> {
-  const suggestedPath = await detectDefaultAnkiMediaDir();
-  const prompt =
-    "Diretorio collection.media do Anki (Enter para pular copia de audio):";
-  const mediaDirInput = await askText(prompt, suggestedPath);
-  const mediaDir = mediaDirInput ? mediaDirInput.trim() : "";
-
-  if (!mediaDir) {
-    printWarning("Audio nao foi copiado para o Anki automaticamente.");
-    printDim(
-      "Para ouvir no Anki, copie os .mp3 para sua pasta collection.media.",
-    );
-    return;
-  }
-
-  const mediaDirExists = await pathExists(mediaDir);
-  if (!mediaDirExists) {
-    printWarning(`Diretorio inexistente: ${mediaDir}`);
-    printDim("Pulando copia automatica de audio para o Anki.");
-    return;
-  }
-
-  for (const mediaFileName of mediaFiles) {
-    const fromPath = buildExportPath(mediaFileName);
-    const toPath = path.join(mediaDir, mediaFileName);
-    await copyFile(fromPath, toPath);
-  }
-
-  printSuccess(`Audios copiados para o Anki: ${mediaFiles.length}`);
 }
 
 async function finishSession(cards: AnkiExportCard[]): Promise<void> {
@@ -148,14 +68,7 @@ async function finishSession(cards: AnkiExportCard[]): Promise<void> {
   }
 
   const defaultName = getDefaultAnkiFileName();
-  const fileNameRaw = await askText(
-    "Nome do arquivo de importacao:",
-    defaultName,
-  );
-  const fileName =
-    fileNameRaw && fileNameRaw.trim() ? fileNameRaw.trim() : defaultName;
-
-  await writeAnkiFile(cards, fileName);
+  await writeAnkiFile(cards, defaultName);
   printInfo(`Total de cards: ${cards.length}`);
 }
 
@@ -169,12 +82,19 @@ async function handleWord(
     color: "cyan",
   }).start();
 
-  let wordData: WordDataResult;
-  try {
-    wordData = await fetchWordData(word);
-    spinner.succeed(`${icons.tick} Dados carregados para \"${word}\".`);
-  } catch (error) {
-    spinner.fail(`${icons.cross} ${error.message}`);
+  const wordData = await fetchWordData(word)
+    .then((data) => {
+      spinner.succeed(`${icons.tick} Dados carregados para \"${word}\".`);
+      return data;
+    })
+    .catch((error) => {
+      spinner.fail(
+        `${icons.cross} ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return null;
+    });
+
+  if (!wordData) {
     return;
   }
 
@@ -226,7 +146,22 @@ async function handleWord(
 
   const { sentence: _sentence, word: _word, ...exportCard } = card;
   cards.push(exportCard);
-  printSuccess(`Card salvo. Total: ${cards.length}`);
+
+  try {
+    const noteId = await addCardToAnki(exportCard);
+    printSuccess(
+      `Card salvo no Anki (noteId: ${noteId}). Total: ${cards.length}`,
+    );
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    printWarning(`Card salvo localmente, mas falhou no AnkiConnect: ${reason}`);
+    printDim("Verifique se o Anki esta aberto com o add-on AnkiConnect ativo.");
+    printDim(
+      "Se necessario, configure ANKORE_ANKI_MODEL_NAME/ANKORE_ANKI_FRONT_FIELD/ANKORE_ANKI_BACK_FIELD.",
+    );
+    printSuccess(`Card salvo localmente. Total: ${cards.length}`);
+  }
+
   console.log("");
 }
 
@@ -323,6 +258,19 @@ export async function runMiningMode({
   const cards: AnkiExportCard[] = [];
 
   await prepareSessionDirectories();
+
+  try {
+    const ankiStatus = await getAnkiConnectStatus();
+    printInfo(
+      `AnkiConnect ativo (v${ankiStatus.version}) em ${ankiStatus.endpointUrl}, deck ${ankiStatus.deckName}, modelo ${ankiStatus.modelName}.`,
+    );
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    printWarning(`AnkiConnect indisponivel no inicio da sessao: ${reason}`);
+    printDim(
+      "Os cards continuarao salvos localmente e no arquivo .tsv, mesmo sem envio automatico.",
+    );
+  }
 
   printTitle();
   printDim(

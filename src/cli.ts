@@ -2,6 +2,7 @@
 
 import { listModeDetails, startMode } from "./index.js";
 import { generateSampleExport } from "./lib/sample-export.js";
+import { getAnkiConnectStatus } from "./lib/anki-connect.js";
 
 function printHelp() {
   const modeLines = listModeDetails()
@@ -17,6 +18,7 @@ function printHelp() {
   console.log(
     "  ankore sample-export  Gera arquivo de exemplo para importacao",
   );
+  console.log("  ankore doctor         Verifica conectividade com AnkiConnect");
   console.log("  ankore help           Mostra esta ajuda");
   console.log("");
   console.log("Modos disponiveis:");
@@ -39,6 +41,27 @@ async function run() {
   if (command === "sample-export") {
     const outputFile = await generateSampleExport();
     console.log(`Sample file generated: ${outputFile}`);
+    return;
+  }
+
+  if (command === "doctor") {
+    try {
+      const status = await getAnkiConnectStatus();
+      console.log("AnkiConnect OK");
+      console.log(`- endpoint: ${status.endpointUrl}`);
+      console.log(`- version: ${status.version}`);
+      console.log(`- deck: ${status.deckName}`);
+      console.log(`- model: ${status.modelName}`);
+      console.log(
+        `- fields: ${status.frontFieldName} / ${status.backFieldName}`,
+      );
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      console.error("AnkiConnect falhou");
+      console.error(`- motivo: ${reason}`);
+      process.exitCode = 1;
+    }
+
     return;
   }
 
