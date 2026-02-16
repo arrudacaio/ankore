@@ -12,7 +12,7 @@ const palette = {
   title: colorLevel >= 3 ? chalk.hex("#1D3557") : chalk.blue,
   accent: colorLevel >= 3 ? chalk.hex("#2A9D8F") : chalk.green,
   warning: colorLevel >= 3 ? chalk.hex("#E76F51") : chalk.yellow,
-  dim: chalk.dim
+  dim: chalk.dim,
 };
 
 function resolveIcon(candidates, fallback) {
@@ -27,12 +27,15 @@ function resolveIcon(candidates, fallback) {
 
 const icons = {
   tick: resolveIcon(["tick"], "[ok]"),
-  edit: resolveIcon(["pencil", "pencilRight", "pencilLeft", "bullet"], "[edit]"),
+  edit: resolveIcon(
+    ["pencil", "pencilRight", "pencilLeft", "bullet"],
+    "[edit]",
+  ),
   swap: resolveIcon(["play", "arrowRight", "pointerSmall"], "[swap]"),
   cross: resolveIcon(["cross"], "[x]"),
   warning: resolveIcon(["warning"], "[!]"),
   info: resolveIcon(["info"], "[i]"),
-  pointer: resolveIcon(["pointer", "pointerSmall"], ">")
+  pointer: resolveIcon(["pointer", "pointerSmall"], ">"),
 };
 
 function getPromptErrorType(error) {
@@ -59,35 +62,38 @@ export async function askText(message, defaultValue = "") {
   }
 }
 
-export async function askCardAction({ canSwapSentence, hasLiteralTranslation }) {
+export async function askCardAction({
+  canSwapSentence,
+  hasLiteralTranslation,
+}) {
   try {
     return await select({
       message: "Escolha uma acao para este card",
       choices: [
         {
           name: `${icons.tick} Aceitar card`,
-          value: "accept"
+          value: "accept",
         },
         {
           name: `${icons.swap} Trocar frase sugerida`,
           value: "swap",
-          disabled: canSwapSentence ? false : "Sem frases alternativas"
+          disabled: canSwapSentence ? false : "Sem frases alternativas",
         },
         {
           name: `${icons.edit} Editar frase manualmente`,
-          value: "edit"
+          value: "edit",
         },
         {
           name: hasLiteralTranslation
             ? `${icons.info} Remover traducao literal (pt-BR)`
             : `${icons.info} Incluir traducao literal (pt-BR)`,
-          value: "toggleTranslation"
+          value: "toggleTranslation",
         },
         {
           name: `${icons.cross} Pular card`,
-          value: "skip"
-        }
-      ]
+          value: "skip",
+        },
+      ],
     });
   } catch (error) {
     if (getPromptErrorType(error) === "exit") {
@@ -105,13 +111,13 @@ export async function askWatchIdleAction() {
       choices: [
         {
           name: `${icons.tick} Gerar arquivo final e encerrar`,
-          value: "finish"
+          value: "finish",
         },
         {
           name: `${icons.swap} Continuar aguardando clipboard`,
-          value: "wait"
-        }
-      ]
+          value: "wait",
+        },
+      ],
     });
   } catch (error) {
     if (getPromptErrorType(error) === "exit") {
@@ -127,13 +133,19 @@ export function printTitle() {
   console.log(palette.title.bold("Ankore CLI"));
   console.log(
     palette.dim(
-      "Digite uma palavra em ingles por vez. Use /finish para gerar o arquivo de importacao final."
-    )
+      "Digite uma palavra em ingles por vez. Use /finish para gerar o arquivo de importacao final.",
+    ),
   );
   console.log("");
 }
 
-export function printCardPreview({ sentence, word, definition, phonetic, literalTranslationPtBr }) {
+export function printCardPreview({
+  sentence,
+  word,
+  definition,
+  phonetic,
+  literalTranslationPtBr,
+}) {
   const width = Math.max((process.stdout.columns || 100) - 14, 46);
   const table = new Table({
     head: [palette.title.bold("Campo"), palette.title.bold("Conteudo")],
@@ -141,8 +153,8 @@ export function printCardPreview({ sentence, word, definition, phonetic, literal
     wordWrap: true,
     style: {
       head: [],
-      border: []
-    }
+      border: [],
+    },
   });
 
   const backPreviewLines = [`Meaning: ${definition}`, `Phonetic: ${phonetic}`];
@@ -151,7 +163,10 @@ export function printCardPreview({ sentence, word, definition, phonetic, literal
     backPreviewLines.push(`Literal (pt-BR): ${literalTranslationPtBr}`);
   }
 
-  table.push(["Front", highlightWordForCli(sentence, word, palette.accent.bold)], ["Back", backPreviewLines.join("\n")]);
+  table.push(
+    ["Front", highlightWordForCli(sentence, word, palette.accent.bold)],
+    ["Back", backPreviewLines.join("\n")],
+  );
 
   console.log(`${palette.accent.bold(icons.pointer)} Preview do card`);
   console.log(table.toString());
@@ -176,6 +191,6 @@ export function printDim(message) {
 export function uiTokens() {
   return {
     palette,
-    icons
+    icons,
   };
 }

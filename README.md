@@ -83,30 +83,56 @@ Ao importar o arquivo `.tsv`:
 
 ## Estrutura do projeto
 
-- `src/index.js`: orquestracao do fluxo CLI
-- `src/lib/ui.js`: prompts e output visual no terminal
-- `src/lib/word-data.js`: integracao com APIs e montagem de dados da palavra
-- `src/lib/card-session.js`: revisao do card e acoes de troca/edicao
-- `src/lib/anki-export.js`: formatacao e exportacao para Anki
-- `src/lib/tts.js`: geracao de audio TTS (en-US)
-- `src/lib/session-storage.js`: limpeza e gerenciamento de `session-output/exports`
-- `src/lib/text.js`: utilitarios de texto e destaque
+- `src/index.ts`: orquestracao do fluxo CLI
+- `src/lib/ui.ts`: prompts e output visual no terminal
+- `src/lib/word-data.ts`: integracao com APIs e montagem de dados da palavra
+- `src/lib/card-session.ts`: revisao do card e acoes de troca/edicao
+- `src/lib/anki-export.ts`: formatacao e exportacao para Anki
+- `src/lib/tts.ts`: geracao de audio TTS (en-US)
+- `src/lib/session-storage.ts`: limpeza e gerenciamento de `session-output/exports`
+- `src/lib/text.ts`: utilitarios de texto e destaque
 
 ## Makefile
 
 - `make install`: instala dependencias e registra o comando global `ankore` via `npm link`
+- `make build`: compila TypeScript para `dist/`
 - `make start`: executa `ankore start`
 - `make watch`: executa `ankore start --watch`
 - `make check`: valida sintaxe do arquivo principal
+- `make test`: roda testes unitarios
+- `make format`: formata codigo com Prettier
 - `make sample-export`: gera `examples/sample-anki-import.tsv` para testar importacao no Anki
 - `make dev`: instala e inicia em sequencia
 
 ## Scripts npm
 
-- `npm start`: executa `ankore start`
-- `npm run watch`: executa `ankore start --watch`
-- `npm run sample-export`: executa `ankore sample-export`
-- `npm run check`: valida sintaxe do arquivo principal
+- `npm run build`: compila TypeScript para `dist/`
+- `npm start`: compila e executa `ankore start`
+- `npm run watch`: compila e executa `ankore start --watch`
+- `npm run sample-export`: compila e executa `ankore sample-export`
+- `npm run check`: compila e valida sintaxe dos arquivos gerados em `dist/`
+- `npm run typecheck`: roda checagem de tipos TypeScript sobre os arquivos do projeto
+- `npm run test`: roda testes unitarios com Vitest
+- `npm run format`: aplica formatacao com Prettier
+- `npm run lint-staged`: executa formatacao em arquivos staged
+
+## TypeScript
+
+O projeto agora usa TypeScript como linguagem principal:
+
+- Fontes em `src/**/*.ts`
+- Build para `dist/` via `tsconfig.build.json`
+- Tipos globais e utilitarios avancados em `src/types.d.ts`
+- Dependencias de desenvolvimento: `typescript` e `@types/node`
+
+## Feedback Loop
+
+O projeto usa um ciclo automatico de feedback para proteger commits:
+
+- `npm run typecheck` valida tipos
+- `npm run test` valida regras de negocio com Vitest
+- `lint-staged` formata arquivos staged com Prettier
+- Hook `.husky/pre-commit` executa tudo antes do commit
 
 ## Comandos Ankore
 
@@ -121,6 +147,6 @@ Ao importar o arquivo `.tsv`:
 
 O CLI esta preparado para novos modos em `ankore start <modo>`.
 
-- Registro de modos: `src/index.js`
-- Implementacao do modo mining: `src/modes/mining/index.js`
+- Registro de modos: `src/index.ts`
+- Implementacao do modo mining: `src/modes/mining/index.ts`
 - Para adicionar novos modos (ex: grammar), basta registrar no `MODE_REGISTRY`.

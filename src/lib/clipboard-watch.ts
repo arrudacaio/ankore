@@ -1,6 +1,6 @@
 import clipboard from "clipboardy";
 
-function extractClipboardWord(rawText) {
+function extractClipboardWord(rawText: string): string | null {
   const trimmed = rawText.trim();
   if (!trimmed) {
     return null;
@@ -19,8 +19,12 @@ function extractClipboardWord(rawText) {
   return normalized;
 }
 
-export function startClipboardWatch({ onWord, onError, intervalMs = 700 }) {
-  let lastClipboardText = null;
+export function startClipboardWatch({
+  onWord,
+  onError,
+  intervalMs = 700,
+}: ClipboardWatchHandlers): () => void {
+  let lastClipboardText: string | null = null;
   let isPolling = false;
 
   const timer = setInterval(async () => {
@@ -51,7 +55,7 @@ export function startClipboardWatch({ onWord, onError, intervalMs = 700 }) {
       onWord(word);
     } catch (error) {
       if (onError) {
-        onError(error);
+        onError(error instanceof Error ? error : new Error(String(error)));
       }
     } finally {
       isPolling = false;

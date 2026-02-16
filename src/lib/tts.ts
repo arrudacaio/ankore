@@ -2,7 +2,7 @@ import { writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { buildExportPath } from "./session-storage.js";
 
-function sanitizeToken(value) {
+function sanitizeToken(value: string): string {
   return value
     .toLowerCase()
     .replace(/[^a-z0-9-_]+/g, "-")
@@ -10,13 +10,16 @@ function sanitizeToken(value) {
     .slice(0, 48);
 }
 
-async function fetchAudioBuffer(url, sentence) {
+async function fetchAudioBuffer(
+  url: string,
+  sentence: string,
+): Promise<Buffer> {
   const response = await fetch(url, {
     headers: {
       "User-Agent": "Mozilla/5.0 AnkoreCLI/1.0",
       Accept: "audio/mpeg,audio/*;q=0.9,*/*;q=0.8",
-      Referer: "https://translate.google.com/"
-    }
+      Referer: "https://translate.google.com/",
+    },
   });
 
   if (!response.ok) {
@@ -33,22 +36,28 @@ async function fetchAudioBuffer(url, sentence) {
   return buffer;
 }
 
-export async function generateSentenceAudio({ sentence, word }) {
+export async function generateSentenceAudio({
+  sentence,
+  word,
+}: {
+  sentence: string;
+  word: string;
+}) {
   const encodedSentence = encodeURIComponent(sentence);
   const providers = [
     `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en-US&q=${encodedSentence}`,
-    `https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=en-US&q=${encodedSentence}`
+    `https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=en-US&q=${encodedSentence}`,
   ];
 
-  let lastError = null;
-  let audioBuffer = null;
+  let lastError: Error | null = null;
+  let audioBuffer: Buffer | null = null;
 
   for (const providerUrl of providers) {
     try {
       audioBuffer = await fetchAudioBuffer(providerUrl, sentence);
       break;
     } catch (error) {
-      lastError = error;
+      lastError = error instanceof Error ? error : new Error(String(error));
     }
   }
 
@@ -64,6 +73,6 @@ export async function generateSentenceAudio({ sentence, word }) {
 
   return {
     fileName,
-    filePath
+    filePath,
   };
 }

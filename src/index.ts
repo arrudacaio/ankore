@@ -3,8 +3,8 @@ import { runMiningMode } from "./modes/mining/index.js";
 const MODE_REGISTRY = {
   mining: {
     run: runMiningMode,
-    description: "Sentence mining para criar cards Anki"
-  }
+    description: "Sentence mining para criar cards Anki",
+  },
 };
 
 export function listModes() {
@@ -14,7 +14,7 @@ export function listModes() {
 export function listModeDetails() {
   return Object.entries(MODE_REGISTRY).map(([name, config]) => ({
     name,
-    description: config.description
+    description: config.description,
   }));
 }
 
@@ -24,7 +24,9 @@ export async function startMode(modeName, options = {}) {
 
   if (!mode) {
     const availableModes = listModes().join(", ");
-    throw new Error(`Modo invalido: ${modeName}. Modos disponiveis: ${availableModes}`);
+    throw new Error(
+      `Modo invalido: ${modeName}. Modos disponiveis: ${availableModes}`,
+    );
   }
 
   await mode.run(options);

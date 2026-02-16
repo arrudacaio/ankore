@@ -3,21 +3,29 @@
   "version": "1.0.0",
   "description": "Ankore CLI para criar cards de sentence mining para Anki",
   "type": "module",
-  "main": "src/index.js",
+  "main": "dist/index.js",
   "bin": {
-    "ankore": "src/cli.js"
+    "ankore": "dist/cli.js"
   },
   "scripts": {
-    "start": "node src/cli.js start",
-    "watch": "node src/cli.js start --watch",
-    "sample-export": "node src/cli.js sample-export",
-    "check": "node --check src/cli.js && node --check src/index.js && node --check src/modes/mining/index.js"
+    "build": "tsc -p tsconfig.build.json",
+    "start": "npm run build && node dist/cli.js start",
+    "watch": "npm run build && node dist/cli.js start --watch",
+    "sample-export": "npm run build && node dist/cli.js sample-export",
+    "check": "npm run build && node --check dist/cli.js && node --check dist/index.js && node --check dist/modes/mining/index.js",
+    "typecheck": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "format": "prettier --ignore-unknown --write .",
+    "format:check": "prettier --ignore-unknown --check .",
+    "lint-staged": "lint-staged",
+    "prepare": "husky"
   },
   "dependencies": {
     "@inquirer/prompts": "^7.8.6",
     "chalk": "^5.6.2",
-    "clipboardy": "^4.0.0",
     "cli-table3": "^0.6.5",
+    "clipboardy": "^4.0.0",
     "figures": "^6.1.0",
     "ora": "^8.2.0",
     "supports-color": "^10.2.2"
@@ -28,5 +36,13 @@
     "cli"
   ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.4.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
+    "prettier": "^3.8.1",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
 }

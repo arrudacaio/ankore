@@ -1,8 +1,27 @@
 import { containsWord, escapeHtml, highlightWordForAnki } from "./text.js";
-import { askText, askCardAction, printCardPreview, printDim, printWarning, printSuccess } from "./ui.js";
+import {
+  askText,
+  askCardAction,
+  printCardPreview,
+  printDim,
+  printWarning,
+  printSuccess,
+} from "./ui.js";
 import { fetchLiteralTranslationPtBr } from "./translation.js";
 
-export function createCard({ sentence, word, definition, phonetic, literalTranslationPtBr }) {
+export function createCard({
+  sentence,
+  word,
+  definition,
+  phonetic,
+  literalTranslationPtBr,
+}: {
+  sentence: string;
+  word: string;
+  definition: string;
+  phonetic: string;
+  literalTranslationPtBr?: string | null;
+}): CardDraft {
   const compactMeaning = escapeHtml(String(definition).trim());
   const compactPhonetic = escapeHtml(String(phonetic).trim());
   const compactLiteralTranslation = literalTranslationPtBr
@@ -11,22 +30,24 @@ export function createCard({ sentence, word, definition, phonetic, literalTransl
 
   const backParts = [
     `<small>Meaning:</small> ${compactMeaning}`,
-    `<small>Phonetic:</small> <b>${compactPhonetic}</b>`
+    `<small>Phonetic:</small> <b>${compactPhonetic}</b>`,
   ];
 
   if (compactLiteralTranslation) {
-    backParts.push(`<small>Literal (pt-BR):</small> ${compactLiteralTranslation}`);
+    backParts.push(
+      `<small>Literal (pt-BR):</small> ${compactLiteralTranslation}`,
+    );
   }
 
   return {
     front: highlightWordForAnki(sentence, word),
     back: backParts.join("<br>"),
     sentence,
-    word
+    word,
   };
 }
 
-async function promptSentenceWithWord(word) {
+async function promptSentenceWithWord(word: string): Promise<string | null> {
   while (true) {
     const customSentenceRaw = await askText("Digite a nova frase:");
     if (customSentenceRaw === null) {
@@ -48,19 +69,39 @@ async function promptSentenceWithWord(word) {
   }
 }
 
-export async function reviewCardCandidate({ word, definition, phonetic, sentenceCandidates, initialSentence }) {
+export async function reviewCardCandidate({
+  word,
+  definition,
+  phonetic,
+  sentenceCandidates,
+  initialSentence,
+}: {
+  word: string;
+  definition: string;
+  phonetic: string;
+  sentenceCandidates: string[];
+  initialSentence: string;
+}): Promise<CardDraft | null> {
   let sentence = initialSentence;
   let sentenceIndex = sentenceCandidates.findIndex((item) => item === sentence);
   let literalTranslationPtBr = null;
-  let translationSentenceReference = null;
+  let translationSentenceReference: string | null = null;
 
   while (true) {
-    printCardPreview({ sentence, word, definition, phonetic, literalTranslationPtBr });
-    printDim(`Sugestoes de frase disponiveis para ${word}: ${sentenceCandidates.length}`);
+    printCardPreview({
+      sentence,
+      word,
+      definition,
+      phonetic,
+      literalTranslationPtBr,
+    });
+    printDim(
+      `Sugestoes de frase disponiveis para ${word}: ${sentenceCandidates.length}`,
+    );
 
     const action = await askCardAction({
       canSwapSentence: sentenceCandidates.length > 1,
-      hasLiteralTranslation: Boolean(literalTranslationPtBr)
+      hasLiteralTranslation: Boolean(literalTranslationPtBr),
     });
 
     if (action === "skip") {
@@ -119,7 +160,9 @@ export async function reviewCardCandidate({ word, definition, phonetic, sentence
         }
 
         if (!literalTranslationPtBr) {
-          printWarning("Nao foi possivel obter traducao literal para esta frase.");
+          printWarning(
+            "Nao foi possivel obter traducao literal para esta frase.",
+          );
           continue;
         }
 
@@ -131,6 +174,12 @@ export async function reviewCardCandidate({ word, definition, phonetic, sentence
       continue;
     }
 
-    return createCard({ sentence, word, definition, phonetic, literalTranslationPtBr });
+    return createCard({
+      sentence,
+      word,
+      definition,
+      phonetic,
+      literalTranslationPtBr,
+    });
   }
 }

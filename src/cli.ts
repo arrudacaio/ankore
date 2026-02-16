@@ -11,8 +11,12 @@ function printHelp() {
   console.log("Ankore CLI");
   console.log("");
   console.log("Uso:");
-  console.log("  ankore start [modo] [--watch]  Inicia um modo (default: mining)");
-  console.log("  ankore sample-export  Gera arquivo de exemplo para importacao");
+  console.log(
+    "  ankore start [modo] [--watch]  Inicia um modo (default: mining)",
+  );
+  console.log(
+    "  ankore sample-export  Gera arquivo de exemplo para importacao",
+  );
   console.log("  ankore help           Mostra esta ajuda");
   console.log("");
   console.log("Modos disponiveis:");

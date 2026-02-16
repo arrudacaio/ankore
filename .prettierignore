@@ -1,0 +1,5 @@
+dist
+coverage
+session-output/exports
+examples/sample-anki-import.tsv
+package-lock.json

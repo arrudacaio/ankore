@@ -3,9 +3,15 @@ import { constants } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import ora from "ora";
-import { buildAnkiImportFile, getDefaultAnkiFileName } from "../../lib/anki-export.js";
+import {
+  buildAnkiImportFile,
+  getDefaultAnkiFileName,
+} from "../../lib/anki-export.js";
 import { reviewCardCandidate } from "../../lib/card-session.js";
-import { prepareSessionDirectories, buildExportPath } from "../../lib/session-storage.js";
+import {
+  prepareSessionDirectories,
+  buildExportPath,
+} from "../../lib/session-storage.js";
 import { generateSentenceAudio } from "../../lib/tts.js";
 import {
   printDim,
@@ -15,19 +21,22 @@ import {
   printWarning,
   askText,
   askWatchIdleAction,
-  uiTokens
+  uiTokens,
 } from "../../lib/ui.js";
 import { startClipboardWatch } from "../../lib/clipboard-watch.js";
 import { fetchWordData } from "../../lib/word-data.js";
 
 const { icons } = uiTokens();
 
-async function writeAnkiFile(cards, fileName) {
+async function writeAnkiFile(
+  cards: AnkiExportCard[],
+  fileName: string,
+): Promise<void> {
   const outputPath = buildExportPath(fileName);
 
   const spinner = ora({
     text: `Gerando arquivo em ${outputPath}...`,
-    color: "cyan"
+    color: "cyan",
   }).start();
 
   try {
@@ -36,11 +45,17 @@ async function writeAnkiFile(cards, fileName) {
 
     const mediaFiles = cards
       .map((card) => card.audioFileName)
-      .filter((value, index, list) => typeof value === "string" && value && list.indexOf(value) === index);
+      .filter(
+        (value): value is string =>
+          typeof value === "string" && value.length > 0,
+      )
+      .filter((value, index, list) => list.indexOf(value) === index);
 
     spinner.succeed(`${icons.tick} Arquivo gerado: ${outputPath}`);
     if (mediaFiles.length > 0) {
-      printInfo(`Midias disponiveis em session-output/exports: ${mediaFiles.length}`);
+      printInfo(
+        `Midias disponiveis em session-output/exports: ${mediaFiles.length}`,
+      );
       await optionallySyncMediaToAnki(mediaFiles);
     }
   } catch (error) {
@@ -49,7 +64,7 @@ async function writeAnkiFile(cards, fileName) {
   }
 }
 
-async function pathExists(targetPath) {
+async function pathExists(targetPath: string): Promise<boolean> {
   try {
     await access(targetPath, constants.F_OK);
     return true;
@@ -58,15 +73,29 @@ async function pathExists(targetPath) {
   }
 }
 
-async function detectDefaultAnkiMediaDir() {
+async function detectDefaultAnkiMediaDir(): Promise<string> {
   const envPath = process.env.ANKORE_ANKI_MEDIA_DIR;
   if (envPath && (await pathExists(envPath))) {
     return envPath;
   }
 
   const home = os.homedir();
-  const linuxDefault = path.join(home, ".local", "share", "Anki2", "User 1", "collection.media");
-  const macDefault = path.join(home, "Library", "Application Support", "Anki2", "User 1", "collection.media");
+  const linuxDefault = path.join(
+    home,
+    ".local",
+    "share",
+    "Anki2",
+    "User 1",
+    "collection.media",
+  );
+  const macDefault = path.join(
+    home,
+    "Library",
+    "Application Support",
+    "Anki2",
+    "User 1",
+    "collection.media",
+  );
 
   if (await pathExists(linuxDefault)) {
     return linuxDefault;
@@ -79,7 +108,7 @@ async function detectDefaultAnkiMediaDir() {
   return "";
 }
 
-async function optionallySyncMediaToAnki(mediaFiles) {
+async function optionallySyncMediaToAnki(mediaFiles: string[]): Promise<void> {
   const suggestedPath = await detectDefaultAnkiMediaDir();
   const prompt =
     "Diretorio collection.media do Anki (Enter para pular copia de audio):";
@@ -88,7 +117,9 @@ async function optionallySyncMediaToAnki(mediaFiles) {
 
   if (!mediaDir) {
     printWarning("Audio nao foi copiado para o Anki automaticamente.");
-    printDim("Para ouvir no Anki, copie os .mp3 para sua pasta collection.media.");
+    printDim(
+      "Para ouvir no Anki, copie os .mp3 para sua pasta collection.media.",
+    );
     return;
   }
 
@@ -108,28 +139,35 @@ async function optionallySyncMediaToAnki(mediaFiles) {
   printSuccess(`Audios copiados para o Anki: ${mediaFiles.length}`);
 }
 
-async function finishSession(cards) {
+async function finishSession(cards: AnkiExportCard[]): Promise<void> {
   if (cards.length === 0) {
     printWarning("Nenhum card foi criado.");
     return;
   }
 
   const defaultName = getDefaultAnkiFileName();
-  const fileNameRaw = await askText("Nome do arquivo de importacao:", defaultName);
-  const fileName = fileNameRaw && fileNameRaw.trim() ? fileNameRaw.trim() : defaultName;
+  const fileNameRaw = await askText(
+    "Nome do arquivo de importacao:",
+    defaultName,
+  );
+  const fileName =
+    fileNameRaw && fileNameRaw.trim() ? fileNameRaw.trim() : defaultName;
 
   await writeAnkiFile(cards, fileName);
   printInfo(`Total de cards: ${cards.length}`);
 }
 
-async function handleWord(rawWord, cards) {
+async function handleWord(
+  rawWord: string,
+  cards: AnkiExportCard[],
+): Promise<void> {
   const word = rawWord.toLowerCase();
   const spinner = ora({
     text: `Buscando dados de \"${word}\" no dicionario...`,
-    color: "cyan"
+    color: "cyan",
   }).start();
 
-  let wordData;
+  let wordData: WordDataResult;
   try {
     wordData = await fetchWordData(word);
     spinner.succeed(`${icons.tick} Dados carregados para \"${word}\".`);
@@ -138,12 +176,12 @@ async function handleWord(rawWord, cards) {
     return;
   }
 
-  const card = await reviewCardCandidate({
+  const card: CardDraft | null = await reviewCardCandidate({
     word,
     definition: wordData.definition,
     phonetic: wordData.phonetic,
     sentenceCandidates: wordData.sentenceCandidates,
-    initialSentence: wordData.sentence
+    initialSentence: wordData.sentence,
   });
 
   if (!card) {
@@ -152,11 +190,14 @@ async function handleWord(rawWord, cards) {
 
   const audioSpinner = ora({
     text: "Gerando audio TTS (en-US) para a frase...",
-    color: "cyan"
+    color: "cyan",
   }).start();
 
   try {
-    const audio = await generateSentenceAudio({ sentence: card.sentence, word: card.word });
+    const audio = await generateSentenceAudio({
+      sentence: card.sentence,
+      word: card.word,
+    });
     card.front = `${card.front} [sound:${audio.fileName}]`;
     card.audioFileName = audio.fileName;
     audioSpinner.succeed(`${icons.tick} Audio gerado: ${audio.fileName}`);
@@ -167,23 +208,21 @@ async function handleWord(rawWord, cards) {
     return;
   }
 
-  delete card.sentence;
-  delete card.word;
-
-  cards.push(card);
+  const { sentence: _sentence, word: _word, ...exportCard } = card;
+  cards.push(exportCard);
   printSuccess(`Card salvo. Total: ${cards.length}`);
   console.log("");
 }
 
-function wait(ms) {
+function wait(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
 }
 
-async function runWatchMode(cards) {
-  const queue = [];
-  const queuedWords = new Set();
+async function runWatchMode(cards: AnkiExportCard[]): Promise<void> {
+  const queue: string[] = [];
+  const queuedWords = new Set<string>();
   let stopRequested = false;
   let lastActivityAt = Date.now();
   let idlePromptAt = 0;
@@ -203,7 +242,7 @@ async function runWatchMode(cards) {
     },
     onError: (error) => {
       printWarning(`Falha ao ler clipboard: ${error.message}`);
-    }
+    },
   });
 
   const requestStop = () => {
@@ -260,13 +299,17 @@ async function runWatchMode(cards) {
   await finishSession(cards);
 }
 
-export async function runMiningMode({ watchMode = false } = {}) {
-  const cards = [];
+export async function runMiningMode({
+  watchMode = false,
+}: MiningModeOptions = {}): Promise<void> {
+  const cards: AnkiExportCard[] = [];
 
   await prepareSessionDirectories();
 
   printTitle();
-  printDim("Pastas de sessao preparadas: arquivos antigos removidos (mantendo .keep).");
+  printDim(
+    "Pastas de sessao preparadas: arquivos antigos removidos (mantendo .keep).",
+  );
   console.log("");
 
   if (watchMode) {

@@ -1,6 +1,6 @@
 import { containsWord, normalizeSentence, uniqueSentences } from "./text.js";
 
-function isContextualSentence(sentence, word) {
+function isContextualSentence(sentence: string, word: string): boolean {
   const normalized = normalizeSentence(sentence);
   const wordCount = normalized.split(" ").filter(Boolean).length;
 
@@ -12,7 +12,7 @@ function isContextualSentence(sentence, word) {
   );
 }
 
-function pickPhonetic(entry) {
+function pickPhonetic(entry: any): string {
   if (entry.phonetic && entry.phonetic.trim()) {
     return entry.phonetic.trim();
   }
@@ -28,16 +28,19 @@ function pickPhonetic(entry) {
   return "N/A";
 }
 
-function pickDefinitionAndExamples(entry, word) {
+function pickDefinitionAndExamples(
+  entry: any,
+  word: string,
+): { definition: string; examples: string[] } {
   if (!Array.isArray(entry.meanings)) {
     return {
       definition: "Definition not found.",
-      examples: []
+      examples: [],
     };
   }
 
   let definition = null;
-  const examples = [];
+  const examples: string[] = [];
 
   for (const meaning of entry.meanings) {
     if (!Array.isArray(meaning.definitions)) {
@@ -53,7 +56,10 @@ function pickDefinitionAndExamples(entry, word) {
         definition = definitionItem.definition;
       }
 
-      if (definitionItem.example && containsWord(definitionItem.example, word)) {
+      if (
+        definitionItem.example &&
+        containsWord(definitionItem.example, word)
+      ) {
         examples.push(normalizeSentence(definitionItem.example));
       }
     }
@@ -61,11 +67,11 @@ function pickDefinitionAndExamples(entry, word) {
 
   return {
     definition: definition || "Definition not found.",
-    examples
+    examples,
   };
 }
 
-async function fetchQuotableSentences(word) {
+async function fetchQuotableSentences(word: string): Promise<string[]> {
   const url = `https://api.quotable.io/search/quotes?query=${encodeURIComponent(word)}&limit=30`;
   const response = await fetch(url);
 
@@ -79,14 +85,16 @@ async function fetchQuotableSentences(word) {
   }
 
   const candidates = data.results
-    .map((item) => (item && typeof item.content === "string" ? item.content : ""))
+    .map((item) =>
+      item && typeof item.content === "string" ? item.content : "",
+    )
     .map((content) => normalizeSentence(content))
     .filter((content) => isContextualSentence(content, word));
 
   return uniqueSentences(candidates);
 }
 
-async function fetchTatoebaSentences(word) {
+async function fetchTatoebaSentences(word: string): Promise<string[]> {
   const url = `https://tatoeba.org/en/api_v0/search?from=eng&query=${encodeURIComponent(word)}&sort=relevance`;
   const response = await fetch(url);
 
@@ -107,7 +115,7 @@ async function fetchTatoebaSentences(word) {
   return uniqueSentences(candidates);
 }
 
-function pickRandomSentence(sentences) {
+function pickRandomSentence(sentences: string[]): string | null {
   if (sentences.length === 0) {
     return null;
   }
@@ -116,13 +124,14 @@ function pickRandomSentence(sentences) {
   return sentences[index];
 }
 
-export async function fetchWordData(word) {
+export async function fetchWordData(word: string): Promise<WordDataResult> {
   const dictionaryUrl = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`;
-  const [dictionaryResponse, quotableSentences, tatoebaSentences] = await Promise.all([
-    fetch(dictionaryUrl),
-    fetchQuotableSentences(word).catch(() => []),
-    fetchTatoebaSentences(word).catch(() => [])
-  ]);
+  const [dictionaryResponse, quotableSentences, tatoebaSentences] =
+    await Promise.all([
+      fetch(dictionaryUrl),
+      fetchQuotableSentences(word).catch(() => []),
+      fetchTatoebaSentences(word).catch(() => []),
+    ]);
 
   if (!dictionaryResponse.ok) {
     throw new Error(`Could not fetch dictionary data for "${word}".`);
@@ -137,20 +146,27 @@ export async function fetchWordData(word) {
   const { definition, examples } = pickDefinitionAndExamples(entry, word);
   const phonetic = pickPhonetic(entry);
 
-  const sentenceCandidates = uniqueSentences([...tatoebaSentences, ...quotableSentences, ...examples]);
+  const sentenceCandidates = uniqueSentences([
+    ...tatoebaSentences,
+    ...quotableSentences,
+    ...examples,
+  ]);
 
   if (sentenceCandidates.length === 0) {
     throw new Error(
-      `No contextual sentence found for \"${word}\". Try another word or add one manually after selecting a different word.`
+      `No contextual sentence found for \"${word}\". Try another word or add one manually after selecting a different word.`,
     );
   }
 
   const sentence = pickRandomSentence(sentenceCandidates);
+  if (!sentence) {
+    throw new Error(`No contextual sentence found for "${word}".`);
+  }
 
   return {
     definition,
     phonetic,
     sentence,
-    sentenceCandidates
+    sentenceCandidates,
   };
 }

@@ -1,19 +1,19 @@
-export function escapeRegExp(value) {
+export function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-export function containsWord(sentence, word) {
+export function containsWord(sentence: string, word: string): boolean {
   const regex = new RegExp(`\\b${escapeRegExp(word)}\\b`, "i");
   return regex.test(sentence);
 }
 
-export function normalizeSentence(sentence) {
+export function normalizeSentence(sentence: string): string {
   return sentence.replace(/\s+/g, " ").trim();
 }
 
-export function uniqueSentences(sentences) {
-  const seen = new Set();
-  const output = [];
+export function uniqueSentences(sentences: string[]): string[] {
+  const seen = new Set<string>();
+  const output: string[] = [];
 
   for (const rawSentence of sentences) {
     if (!rawSentence) {
@@ -37,17 +37,21 @@ export function uniqueSentences(sentences) {
   return output;
 }
 
-export function highlightWordForAnki(sentence, word) {
+export function highlightWordForAnki(sentence: string, word: string): string {
   const regex = new RegExp(`\\b(${escapeRegExp(word)})\\b`, "i");
   return sentence.replace(regex, "<b>$1</b>");
 }
 
-export function highlightWordForCli(sentence, word, accentColor) {
+export function highlightWordForCli(
+  sentence: string,
+  word: string,
+  accentColor: (value: string) => string,
+): string {
   const regex = new RegExp(`\\b(${escapeRegExp(word)})\\b`, "i");
   return sentence.replace(regex, accentColor("$1"));
 }
 
-export function escapeHtml(value) {
+export function escapeHtml(value: string): string {
   return String(value)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

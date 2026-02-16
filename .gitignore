@@ -9,6 +9,8 @@ pnpm-debug.log*
 # Local outputs
 ankore-cards-*.tsv
 ankore-cards-*.csv
+dist/
+examples/sample-anki-import.tsv
 session-output/exports/*
 !session-output/exports/.keep
 
