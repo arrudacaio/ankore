@@ -13,6 +13,7 @@ import {
   buildExportPath,
 } from "../../lib/session-storage.js";
 import { generateSentenceAudio } from "../../lib/tts.js";
+import { playAudioPreview } from "../../lib/audio-player.js";
 import {
   printDim,
   printInfo,
@@ -182,29 +183,43 @@ async function handleWord(
     phonetic: wordData.phonetic,
     sentenceCandidates: wordData.sentenceCandidates,
     initialSentence: wordData.sentence,
+    previewAudio: async (sentence) => {
+      const audioSpinner = ora({
+        text: "Gerando audio TTS (en-US) para preview...",
+        color: "cyan",
+      }).start();
+      try {
+        const audio = await generateSentenceAudio({ sentence });
+        audioSpinner.text = `Reproduzindo audio: ${audio.fileName}`;
+        try {
+          await playAudioPreview(audio.filePath);
+          audioSpinner.succeed(
+            `${icons.tick} Audio reproduzido: ${audio.fileName}`,
+          );
+        } catch (error) {
+          audioSpinner.succeed(
+            `${icons.tick} Audio gerado para preview: ${audio.fileName}`,
+          );
+          printWarning(
+            `Nao foi possivel reproduzir automaticamente. Voce ainda pode aceitar o card. Detalhe: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
+
+        return audio;
+      } catch (error) {
+        audioSpinner.fail(
+          `${icons.cross} Falha no preview de audio: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+        throw error;
+      }
+    },
   });
 
   if (!card) {
-    return;
-  }
-
-  const audioSpinner = ora({
-    text: "Gerando audio TTS (en-US) para a frase...",
-    color: "cyan",
-  }).start();
-
-  try {
-    const audio = await generateSentenceAudio({
-      sentence: card.sentence,
-      word: card.word,
-    });
-    card.front = `${card.front} [sound:${audio.fileName}]`;
-    card.audioFileName = audio.fileName;
-    audioSpinner.succeed(`${icons.tick} Audio gerado: ${audio.fileName}`);
-  } catch (error) {
-    audioSpinner.fail(`${icons.cross} Falha ao gerar audio: ${error.message}`);
-    printWarning("Card nao salvo porque o audio nao foi gerado.");
-    console.log("");
     return;
   }
 

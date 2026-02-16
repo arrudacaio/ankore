@@ -11,6 +11,8 @@ ankore-cards-*.tsv
 ankore-cards-*.csv
 dist/
 examples/sample-anki-import.tsv
+models/piper/
+tools/piper/
 session-output/exports/*
 !session-output/exports/.keep
 

@@ -75,17 +75,20 @@ export async function reviewCardCandidate({
   phonetic,
   sentenceCandidates,
   initialSentence,
+  previewAudio,
 }: {
   word: string;
   definition: string;
   phonetic: string;
   sentenceCandidates: string[];
   initialSentence: string;
+  previewAudio: (sentence: string) => Promise<{ fileName: string }>;
 }): Promise<CardDraft | null> {
   let sentence = initialSentence;
   let sentenceIndex = sentenceCandidates.findIndex((item) => item === sentence);
   let literalTranslationPtBr = null;
   let translationSentenceReference: string | null = null;
+  let previewedAudio: { sentence: string; fileName: string } | null = null;
 
   while (true) {
     printCardPreview({
@@ -102,6 +105,9 @@ export async function reviewCardCandidate({
     const action = await askCardAction({
       canSwapSentence: sentenceCandidates.length > 1,
       hasLiteralTranslation: Boolean(literalTranslationPtBr),
+      hasAudioPreview: Boolean(
+        previewedAudio && previewedAudio.sentence === sentence,
+      ),
     });
 
     if (action === "skip") {
@@ -125,6 +131,7 @@ export async function reviewCardCandidate({
       sentence = sentenceCandidates[sentenceIndex];
       literalTranslationPtBr = null;
       translationSentenceReference = null;
+      previewedAudio = null;
       printSuccess("Frase sugerida trocada.");
       continue;
     }
@@ -141,6 +148,23 @@ export async function reviewCardCandidate({
       sentenceIndex = -1;
       literalTranslationPtBr = null;
       translationSentenceReference = null;
+      previewedAudio = null;
+      continue;
+    }
+
+    if (action === "previewAudio") {
+      try {
+        printDim("Gerando/reproduzindo audio da frase...");
+        const preview = await previewAudio(sentence);
+        previewedAudio = {
+          sentence,
+          fileName: preview.fileName,
+        };
+        printSuccess("Preview de audio concluido.");
+      } catch (error) {
+        printWarning(`Falha ao reproduzir audio: ${error.message}`);
+      }
+
       continue;
     }
 
@@ -174,12 +198,22 @@ export async function reviewCardCandidate({
       continue;
     }
 
-    return createCard({
+    if (!previewedAudio || previewedAudio.sentence !== sentence) {
+      printWarning("Ouca o audio da frase antes de aceitar o card.");
+      continue;
+    }
+
+    const card = createCard({
       sentence,
       word,
       definition,
       phonetic,
       literalTranslationPtBr,
     });
+
+    card.front = `${card.front} [sound:${previewedAudio.fileName}]`;
+    card.audioFileName = previewedAudio.fileName;
+
+    return card;
   }
 }

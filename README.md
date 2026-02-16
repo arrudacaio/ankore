@@ -27,10 +27,31 @@ CLI em Node.js para criar cards de sentence mining para o Anki com interface vis
    - Prompts interativos (`@inquirer/prompts`)
 9. Oferece modo watch para capturar palavras copiadas no clipboard em background.
 10. No inicio de cada sessao, limpa arquivos antigos e preserva apenas `.keep` em `session-output/exports`.
+11. Gera audio local com Piper (modelo `en_US-ryan-high`) e converte para MP3 com ffmpeg usando nome deterministico `ankore-<sha1(texto)>.mp3`.
 
 ## Requisitos
 
 - Node.js 18+
+- Piper no sistema (opcional; se nao existir, a CLI baixa o binario automaticamente em Linux x64/arm64)
+- ffmpeg no sistema (opcional; se nao existir, a CLI usa/instala `ffmpeg-static` automaticamente)
+- Modelo Piper `en_US-ryan-high.onnx`
+- Se o modelo nao existir localmente, a CLI baixa automaticamente de:
+  - `https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/ryan/high`
+
+Variaveis de ambiente para audio local:
+
+- `ANKORE_PIPER_MODEL_PATH` (opcional): use somente se o modelo estiver em local customizado
+- `ANKORE_PIPER_BIN` (opcional): use somente se o binario Piper estiver em local customizado
+- `ANKORE_FFMPEG_BIN` (opcional): use somente se o binario ffmpeg estiver em local customizado
+- `ANKORE_TTS_STRATEGY` (opcional): estrategia de TTS (`piper`)
+- `ANKORE_AUDIO_PLAYER` (opcional): define player para preview de audio (ex: `ffplay`, `mpg123`, `afplay`)
+- `ANKORE_AUDIO_PLAYER_ARGS` (opcional): argumentos extras para `ANKORE_AUDIO_PLAYER`
+
+Deteccao automatica (sem configurar PATH):
+
+- Piper: `~/.cache/ankore/piper/`, `tools/piper/piper`, `vendor/piper/piper`, `bin/piper`, `~/.local/bin/piper`, `/usr/local/bin/piper`, `/usr/bin/piper` e download automatico do release `2023.11.14-2` quando nao encontrado
+- Modelo: `models/en_US-ryan-high.onnx`, `models/piper/en_US-ryan-high.onnx`, `assets/piper/en_US-ryan-high.onnx`, `~/.local/share/piper/`, `~/.cache/piper/`, `/usr/local/share/piper/`, `/usr/share/piper/`
+- ffmpeg: `tools/ffmpeg/ffmpeg`, `vendor/ffmpeg/bin/ffmpeg`, `bin/ffmpeg`, `~/.local/bin/ffmpeg`, `/usr/local/bin/ffmpeg`, `/usr/bin/ffmpeg`
 
 ## Como usar
 
@@ -49,7 +70,7 @@ Fluxo na CLI:
 
 - Digite uma palavra em ingles (ex: `improve`)
 - Veja o preview
-- Escolha no menu interativo: aceitar, trocar frase sugerida, editar frase manualmente, incluir/remover traducao literal pt-BR no verso ou pular
+- Escolha no menu interativo: ouvir audio da frase (preview), aceitar, trocar frase sugerida, editar frase manualmente, incluir/remover traducao literal pt-BR no verso ou pular
 - Quando terminar o dia, digite `/finish`
 - Informe o nome do arquivo `.tsv` (ou use o default)
 - O arquivo final vai para `session-output/exports/`
@@ -88,7 +109,9 @@ Ao importar o arquivo `.tsv`:
 - `src/lib/word-data.ts`: integracao com APIs e montagem de dados da palavra
 - `src/lib/card-session.ts`: revisao do card e acoes de troca/edicao
 - `src/lib/anki-export.ts`: formatacao e exportacao para Anki
-- `src/lib/tts.ts`: geracao de audio TTS (en-US)
+- `src/lib/tts.ts`: orquestracao de audio local (Piper + ffmpeg)
+- `src/lib/tts-strategies.ts`: selecao de estrategia de TTS (strategy pattern)
+- `src/lib/piper.ts`: wrapper do processo Piper via CLI
 - `src/lib/session-storage.ts`: limpeza e gerenciamento de `session-output/exports`
 - `src/lib/text.ts`: utilitarios de texto e destaque
 

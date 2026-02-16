@@ -65,6 +65,7 @@ export async function askText(message, defaultValue = "") {
 export async function askCardAction({
   canSwapSentence,
   hasLiteralTranslation,
+  hasAudioPreview,
 }) {
   try {
     return await select({
@@ -73,6 +74,11 @@ export async function askCardAction({
         {
           name: `${icons.tick} Aceitar card`,
           value: "accept",
+          disabled: hasAudioPreview ? false : "Ouca o audio antes de aceitar",
+        },
+        {
+          name: `${icons.info} Ouvir audio da frase`,
+          value: "previewAudio",
         },
         {
           name: `${icons.swap} Trocar frase sugerida`,
