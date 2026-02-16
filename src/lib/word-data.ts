@@ -124,6 +124,10 @@ function pickRandomSentence(sentences: string[]): string | null {
   return sentences[index];
 }
 
+function isMultiWordExpression(value: string): boolean {
+  return /\s+/.test(value.trim());
+}
+
 export async function fetchWordData(word: string): Promise<WordDataResult> {
   const dictionaryUrl = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`;
   const [dictionaryResponse, quotableSentences, tatoebaSentences] =
@@ -133,18 +137,30 @@ export async function fetchWordData(word: string): Promise<WordDataResult> {
       fetchTatoebaSentences(word).catch(() => []),
     ]);
 
-  if (!dictionaryResponse.ok) {
+  const allowDictionaryFallback = isMultiWordExpression(word);
+
+  let definition = "Definition not found.";
+  let phonetic = "N/A";
+  let examples: string[] = [];
+
+  if (dictionaryResponse.ok) {
+    const dictionaryData = await dictionaryResponse.json();
+    if (Array.isArray(dictionaryData) && dictionaryData.length > 0) {
+      const entry = dictionaryData[0];
+      const definitionAndExamples = pickDefinitionAndExamples(entry, word);
+      definition = definitionAndExamples.definition;
+      examples = definitionAndExamples.examples;
+      phonetic = pickPhonetic(entry);
+    } else if (!allowDictionaryFallback) {
+      throw new Error(`No dictionary entries found for "${word}".`);
+    }
+  } else if (!allowDictionaryFallback) {
     throw new Error(`Could not fetch dictionary data for "${word}".`);
   }
 
-  const dictionaryData = await dictionaryResponse.json();
-  if (!Array.isArray(dictionaryData) || dictionaryData.length === 0) {
-    throw new Error(`No dictionary entries found for "${word}".`);
+  if (allowDictionaryFallback && definition === "Definition not found.") {
+    definition = `Definition not found for expression "${word}".`;
   }
-
-  const entry = dictionaryData[0];
-  const { definition, examples } = pickDefinitionAndExamples(entry, word);
-  const phonetic = pickPhonetic(entry);
 
   const sentenceCandidates = uniqueSentences([
     ...tatoebaSentences,

@@ -6,9 +6,9 @@
 
 CLI em Node.js para criar cards de sentence mining para o Anki com interface visual no terminal.
 
-## O que faz
+## Funcionalidades principais
 
-1. Recebe uma palavra em ingles.
+1. Recebe palavra ou expressao em ingles.
 2. Busca significado em ingles e transcricao fonetica via API publica.
 3. Busca frases reais em contexto (Tatoeba + Quotable + exemplos de dicionario), sem templates genericos inserindo a palavra.
 4. Monta preview do card:
@@ -17,7 +17,7 @@ CLI em Node.js para criar cards de sentence mining para o Anki com interface vis
    - Back: labels `Meaning` e `Phonetic` em fonte menor, com fonetica em negrito
    - Back opcional: `Literal (pt-BR)` quando voce habilita traducao literal
 5. Permite aceitar, trocar a frase sugerida, editar frase manualmente, incluir/remover traducao literal pt-BR no verso ou pular card.
-6. Mantem cards em memoria ate o comando final.
+6. Mantem cards em memoria ate a finalizacao da sessao pelo menu.
 7. Gera arquivo `.tsv` otimizado para importacao no Anki (UTF-8 BOM, sem cabecalho, 2 colunas).
 8. Exibe UI melhorada com:
    - Cores adaptadas ao terminal (`chalk` + `supports-color`)
@@ -70,10 +70,11 @@ ankore start --watch
 
 Fluxo na CLI:
 
-- Digite uma palavra em ingles (ex: `improve`)
+- No menu principal, escolha `Adicionar palavra/expressao`
+- Digite uma palavra ou expressao em ingles (ex: `improve`, `goes away`)
 - Veja o preview
 - Escolha no menu interativo: ouvir audio da frase (preview), aceitar, trocar frase sugerida, editar frase manualmente, incluir/remover traducao literal pt-BR no verso ou pular
-- Quando terminar o dia, digite `/finish`
+- Quando quiser encerrar, no menu principal escolha `Finalizar e gerar arquivo`
 - Informe o nome do arquivo `.tsv` (ou use o default)
 - O arquivo final vai para `session-output/exports/`
 

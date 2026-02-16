@@ -7,12 +7,12 @@ function extractClipboardWord(rawText: string): string | null {
   }
 
   const withoutEdges = trimmed.replace(/^[^A-Za-z]+|[^A-Za-z]+$/g, "");
-  if (!withoutEdges || /\s/.test(withoutEdges)) {
+  if (!withoutEdges) {
     return null;
   }
 
-  const normalized = withoutEdges.toLowerCase();
-  if (!/^[a-z]+(?:[-'][a-z]+)*$/.test(normalized)) {
+  const normalized = withoutEdges.toLowerCase().replace(/\s+/g, " ");
+  if (!/^[a-z]+(?:[-'][a-z]+)*(?: [a-z]+(?:[-'][a-z]+)*)*$/.test(normalized)) {
     return null;
   }
 

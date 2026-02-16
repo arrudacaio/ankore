@@ -134,12 +134,36 @@ export async function askWatchIdleAction() {
   }
 }
 
+export async function askMainAction() {
+  try {
+    return await select({
+      message: "O que deseja fazer agora?",
+      choices: [
+        {
+          name: `${icons.edit} Adicionar palavra/expressao`,
+          value: "addTerm",
+        },
+        {
+          name: `${icons.tick} Finalizar e gerar arquivo`,
+          value: "finishSession",
+        },
+      ],
+    });
+  } catch (error) {
+    if (getPromptErrorType(error) === "exit") {
+      return "finishSession";
+    }
+
+    throw error;
+  }
+}
+
 export function printTitle() {
   console.log("");
   console.log(palette.title.bold("Ankore CLI"));
   console.log(
     palette.dim(
-      "Digite uma palavra em ingles por vez. Use /finish para gerar o arquivo de importacao final.",
+      "Adicione palavras/expressoes em ingles e finalize a sessao pelo menu.",
     ),
   );
   console.log("");

@@ -21,6 +21,7 @@ import {
   printTitle,
   printWarning,
   askText,
+  askMainAction,
   askWatchIdleAction,
   uiTokens,
 } from "../../lib/ui.js";
@@ -253,7 +254,7 @@ async function runWatchMode(cards: AnkiExportCard[]): Promise<void> {
       queuedWords.add(word);
       queue.push(word);
       lastActivityAt = Date.now();
-      printInfo(`Palavra capturada do clipboard: ${word}`);
+      printInfo(`Termo capturado do clipboard: ${word}`);
     },
     onError: (error) => {
       printWarning(`Falha ao ler clipboard: ${error.message}`);
@@ -267,7 +268,9 @@ async function runWatchMode(cards: AnkiExportCard[]): Promise<void> {
   process.once("SIGINT", requestStop);
   process.once("SIGTERM", requestStop);
 
-  printInfo("Modo watch ativo. Copie uma palavra para captura automatica.");
+  printInfo(
+    "Modo watch ativo. Copie uma palavra ou expressao para captura automatica.",
+  );
   printDim("Use Ctrl+C para encerrar e salvar o arquivo final.");
   console.log("");
 
@@ -333,7 +336,13 @@ export async function runMiningMode({
   }
 
   while (true) {
-    const rawWordInput = await askText("Palavra (ou /finish):");
+    const mainAction = await askMainAction();
+    if (mainAction === "finishSession") {
+      await finishSession(cards);
+      return;
+    }
+
+    const rawWordInput = await askText("Palavra/expressao:");
 
     if (rawWordInput === null) {
       if (cards.length === 0) {
@@ -350,11 +359,6 @@ export async function runMiningMode({
     const rawWord = rawWordInput.trim();
     if (!rawWord) {
       continue;
-    }
-
-    if (rawWord.toLowerCase() === "/finish") {
-      await finishSession(cards);
-      return;
     }
 
     await handleWord(rawWord, cards);
