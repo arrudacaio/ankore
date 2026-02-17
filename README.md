@@ -40,6 +40,39 @@ npm run build
 npm link
 ```
 
+## Como usar (primeiro uso)
+
+Siga esta ordem para evitar erro de conexao com o Anki:
+
+1. Clone o repositorio:
+
+```bash
+git clone <URL_DO_REPOSITORIO>
+cd ankore
+```
+
+2. Instale e prepare a CLI:
+
+```bash
+make install
+```
+
+3. Abra o Anki e confirme que o add-on AnkiConnect esta instalado e ativo.
+4. Se necessario, reinicie o Anki para o AnkiConnect subir corretamente.
+5. Com o Anki aberto, valide a conexao:
+
+```bash
+ankore doctor
+```
+
+6. Inicie o projeto:
+
+```bash
+ankore start
+```
+
+Observacao: sem o Anki aberto e sem o AnkiConnect ativo, a criacao automatica de notas nao funciona.
+
 ## Como rodar
 
 Modo normal:
