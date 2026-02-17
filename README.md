@@ -139,3 +139,7 @@ ankore doctor
   - Campo 2 -> Back
   - Delimitador -> Tab
   - Permitir HTML no Front (`<b>...</b>`)
+
+## Licenca
+
+Este projeto utiliza a licenca MIT. Veja o arquivo `LICENSE` para os detalhes.
