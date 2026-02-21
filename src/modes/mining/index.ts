@@ -75,6 +75,7 @@ async function finishSession(cards: AnkiExportCard[]): Promise<void> {
 async function handleWord(
   rawWord: string,
   cards: AnkiExportCard[],
+  meaningMode: MeaningMode,
 ): Promise<void> {
   const word = rawWord.toLowerCase();
   const spinner = ora({
@@ -82,7 +83,7 @@ async function handleWord(
     color: "cyan",
   }).start();
 
-  const wordData = await fetchWordData(word)
+  const wordData = await fetchWordData(word, { meaningMode })
     .then((data) => {
       spinner.succeed(`${icons.tick} Dados carregados para \"${word}\".`);
       return data;
@@ -101,6 +102,8 @@ async function handleWord(
   const card: CardDraft | null = await reviewCardCandidate({
     word,
     definition: wordData.definition,
+    meaningCandidates: wordData.meaningCandidates || [wordData.definition],
+    meaningConfidence: wordData.meaningConfidence,
     phonetic: wordData.phonetic,
     sentenceCandidates: wordData.sentenceCandidates,
     initialSentence: wordData.sentence,
@@ -171,7 +174,10 @@ function wait(ms: number): Promise<void> {
   });
 }
 
-async function runWatchMode(cards: AnkiExportCard[]): Promise<void> {
+async function runWatchModeWithOptions(
+  cards: AnkiExportCard[],
+  meaningMode: MeaningMode,
+): Promise<void> {
   const queue: string[] = [];
   const queuedWords = new Set<string>();
   let stopRequested = false;
@@ -235,7 +241,7 @@ async function runWatchMode(cards: AnkiExportCard[]): Promise<void> {
       }
 
       queuedWords.delete(nextWord);
-      await handleWord(nextWord, cards);
+      await handleWord(nextWord, cards, meaningMode);
       lastActivityAt = Date.now();
     }
   } finally {
@@ -254,6 +260,7 @@ async function runWatchMode(cards: AnkiExportCard[]): Promise<void> {
 
 export async function runMiningMode({
   watchMode = false,
+  meaningMode = "normal",
 }: MiningModeOptions = {}): Promise<void> {
   const cards: AnkiExportCard[] = [];
 
@@ -276,10 +283,11 @@ export async function runMiningMode({
   printDim(
     "Pastas de sessao preparadas: arquivos antigos removidos (mantendo .keep).",
   );
+  printDim(`Modo de significado ativo: ${meaningMode}.`);
   console.log("");
 
   if (watchMode) {
-    await runWatchMode(cards);
+    await runWatchModeWithOptions(cards, meaningMode);
     return;
   }
 
@@ -309,6 +317,6 @@ export async function runMiningMode({
       continue;
     }
 
-    await handleWord(rawWord, cards);
+    await handleWord(rawWord, cards, meaningMode);
   }
 }

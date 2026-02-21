@@ -13,7 +13,7 @@ function printHelp() {
   console.log("");
   console.log("Uso:");
   console.log(
-    "  ankore start [modo] [--watch]  Inicia um modo (default: mining)",
+    "  ankore start [modo] [--watch] [--meaning <normal|precise>]  Inicia um modo",
   );
   console.log(
     "  ankore sample-export  Gera arquivo de exemplo para importacao",
@@ -25,16 +25,65 @@ function printHelp() {
   console.log(modeLines);
 }
 
+function parseStartArgs(args: string[]): {
+  mode: string;
+  watchMode: boolean;
+  meaningMode: MeaningMode;
+} {
+  let mode = "mining";
+  let watchMode = false;
+  let meaningMode: MeaningMode = "normal";
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+
+    if (arg === "--watch") {
+      watchMode = true;
+      continue;
+    }
+
+    if (arg === "--meaning") {
+      const value = args[index + 1];
+      if (!value || value.startsWith("-")) {
+        throw new Error("Flag --meaning requer um valor: normal ou precise.");
+      }
+
+      if (value !== "normal" && value !== "precise") {
+        throw new Error(
+          `Valor invalido para --meaning: ${value}. Use normal ou precise.`,
+        );
+      }
+
+      meaningMode = value;
+      index += 1;
+      continue;
+    }
+
+    if (!arg.startsWith("-")) {
+      mode = arg;
+      continue;
+    }
+
+    throw new Error(`Flag invalida para start: ${arg}`);
+  }
+
+  return {
+    mode,
+    watchMode,
+    meaningMode,
+  };
+}
+
 async function run() {
   const command = process.argv[2] || "help";
   const args = process.argv.slice(3);
 
   if (command === "start") {
-    const modeArg = args.find((arg) => !arg.startsWith("-"));
-    const mode = modeArg || "mining";
-
-    const watchMode = args.includes("--watch");
-    await startMode(mode, { watchMode });
+    const parsed = parseStartArgs(args);
+    await startMode(parsed.mode, {
+      watchMode: parsed.watchMode,
+      meaningMode: parsed.meaningMode,
+    });
     return;
   }
 

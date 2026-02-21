@@ -30,7 +30,6 @@
     "ffmpeg-static": "^5.2.0",
     "figures": "^6.1.0",
     "ora": "^8.2.0",
-    "reverso-api": "^2.22.10",
     "supports-color": "^10.2.2"
   },
   "keywords": [

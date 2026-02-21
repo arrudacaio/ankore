@@ -4,8 +4,14 @@ import type { AnkoreModeDefinition } from "../registry.js";
 function normalizeMiningOptions(
   options: Record<string, unknown>,
 ): Record<string, unknown> {
+  const meaningMode =
+    options.meaningMode === "precise" || options.meaningMode === "normal"
+      ? options.meaningMode
+      : "normal";
+
   return {
     watchMode: options.watchMode === true,
+    meaningMode,
   };
 }
 
@@ -14,6 +20,10 @@ function toMiningModeOptions(
 ): MiningModeOptions {
   return {
     watchMode: options.watchMode === true,
+    meaningMode:
+      options.meaningMode === "precise" || options.meaningMode === "normal"
+        ? options.meaningMode
+        : "normal",
   };
 }
 

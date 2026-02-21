@@ -11,11 +11,7 @@ CLI em Node.js para criar cards de sentence mining com audio e enviar direto par
 ## Tecnologias usadas
 
 - Node.js + TypeScript
-- Busca de contexto e significado:
-  - Reverso Context (`reverso-api`)
-  - Dictionary API (`dictionaryapi.dev`)
-  - Tatoeba
-  - Quotable
+- Busca de contexto e significado via Reverso Definition API (`definition-api.reverso.net`)
 - TTS local com Piper + conversao MP3 com ffmpeg
 - Integracao com AnkiConnect (deck `ankore-mining`)
 

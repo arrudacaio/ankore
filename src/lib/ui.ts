@@ -64,6 +64,8 @@ export async function askText(message, defaultValue = "") {
 
 export async function askCardAction({
   canSwapSentence,
+  canSwapMeaning,
+  hasMeaningConfidence,
   hasLiteralTranslation,
   hasAudioPreview,
 }) {
@@ -88,6 +90,13 @@ export async function askCardAction({
         {
           name: `${icons.edit} Editar frase manualmente`,
           value: "edit",
+        },
+        {
+          name: hasMeaningConfidence
+            ? `${icons.swap} Trocar meaning sugerido (${hasMeaningConfidence})`
+            : `${icons.swap} Trocar meaning sugerido`,
+          value: "swapMeaning",
+          disabled: canSwapMeaning ? false : "Sem meanings alternativos",
         },
         {
           name: hasLiteralTranslation
@@ -173,6 +182,7 @@ export function printCardPreview({
   sentence,
   word,
   definition,
+  meaningConfidence,
   phonetic,
   literalTranslationPtBr,
 }) {
@@ -187,7 +197,12 @@ export function printCardPreview({
     },
   });
 
-  const backPreviewLines = [`Meaning: ${definition}`, `Phonetic: ${phonetic}`];
+  const backPreviewLines = [
+    meaningConfidence
+      ? `Meaning (${meaningConfidence}): ${definition}`
+      : `Meaning: ${definition}`,
+    `Phonetic: ${phonetic}`,
+  ];
 
   if (literalTranslationPtBr) {
     backPreviewLines.push(`Literal (pt-BR): ${literalTranslationPtBr}`);

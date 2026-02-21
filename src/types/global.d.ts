@@ -1,6 +1,9 @@
 export {};
 
 declare global {
+  type MeaningMode = "normal" | "precise";
+  type MeaningConfidence = "high" | "medium" | "low";
+
   type DeepReadonly<T> = {
     readonly [K in keyof T]: T[K] extends object
       ? T[K] extends (...args: never[]) => unknown
@@ -23,6 +26,7 @@ declare global {
 
   interface MiningModeOptions {
     watchMode?: boolean;
+    meaningMode?: MeaningMode;
   }
 
   interface AnkoreModeDefinition<
@@ -53,6 +57,8 @@ declare global {
     phonetic: string;
     sentence: string;
     sentenceCandidates: string[];
+    meaningCandidates?: string[];
+    meaningConfidence?: MeaningConfidence;
   }
 
   interface ClipboardWatchHandlers {

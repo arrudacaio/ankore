@@ -18,6 +18,19 @@ describe("text utilities", () => {
     expect(containsWord("testing mode", "test")).toBe(false);
   });
 
+  it("matches phrasal verbs with inflected first verb", () => {
+    expect(containsWord("The pain goes away after a while.", "go away")).toBe(
+      true,
+    );
+    expect(containsWord("We are going away tomorrow.", "go away")).toBe(true);
+  });
+
+  it("matches separable phrasal verbs", () => {
+    expect(
+      containsWord("Please turn the lights off before leaving.", "turn off"),
+    ).toBe(true);
+  });
+
   it("normalizes repeated whitespace", () => {
     expect(normalizeSentence("  hello   world\n")).toBe("hello world");
   });
@@ -33,6 +46,12 @@ describe("text utilities", () => {
     expect(highlightWordForAnki("The test is ready", "test")).toBe(
       "The <b>test</b> is ready",
     );
+  });
+
+  it("highlights matched phrasal verb form for Anki output", () => {
+    expect(
+      highlightWordForAnki("The pain goes away after a while.", "go away"),
+    ).toBe("The pain <b>goes away</b> after a while.");
   });
 
   it("escapes HTML entities", () => {

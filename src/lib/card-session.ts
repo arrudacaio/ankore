@@ -72,6 +72,8 @@ async function promptSentenceWithWord(word: string): Promise<string | null> {
 export async function reviewCardCandidate({
   word,
   definition,
+  meaningCandidates,
+  meaningConfidence,
   phonetic,
   sentenceCandidates,
   initialSentence,
@@ -79,11 +81,27 @@ export async function reviewCardCandidate({
 }: {
   word: string;
   definition: string;
+  meaningCandidates?: string[];
+  meaningConfidence?: MeaningConfidence;
   phonetic: string;
   sentenceCandidates: string[];
   initialSentence: string;
   previewAudio: (sentence: string) => Promise<{ fileName: string }>;
 }): Promise<CardDraft | null> {
+  const resolvedMeaningCandidates =
+    meaningCandidates && meaningCandidates.length > 0
+      ? meaningCandidates
+      : [definition];
+
+  let currentDefinition = definition;
+  let meaningIndex = resolvedMeaningCandidates.findIndex(
+    (item) => item === definition,
+  );
+  if (meaningIndex < 0) {
+    meaningIndex = 0;
+    currentDefinition = resolvedMeaningCandidates[0];
+  }
+
   let sentence = initialSentence;
   let sentenceIndex = sentenceCandidates.findIndex((item) => item === sentence);
   let literalTranslationPtBr = null;
@@ -94,7 +112,8 @@ export async function reviewCardCandidate({
     printCardPreview({
       sentence,
       word,
-      definition,
+      definition: currentDefinition,
+      meaningConfidence,
       phonetic,
       literalTranslationPtBr,
     });
@@ -105,6 +124,8 @@ export async function reviewCardCandidate({
     const action = await askCardAction({
       canSwapSentence: sentenceCandidates.length > 1,
       hasLiteralTranslation: Boolean(literalTranslationPtBr),
+      canSwapMeaning: resolvedMeaningCandidates.length > 1,
+      hasMeaningConfidence: meaningConfidence,
       hasAudioPreview: Boolean(
         previewedAudio && previewedAudio.sentence === sentence,
       ),
@@ -149,6 +170,18 @@ export async function reviewCardCandidate({
       literalTranslationPtBr = null;
       translationSentenceReference = null;
       previewedAudio = null;
+      continue;
+    }
+
+    if (action === "swapMeaning") {
+      if (resolvedMeaningCandidates.length <= 1) {
+        printWarning("Nao ha outro meaning sugerido para trocar.");
+        continue;
+      }
+
+      meaningIndex = (meaningIndex + 1) % resolvedMeaningCandidates.length;
+      currentDefinition = resolvedMeaningCandidates[meaningIndex];
+      printSuccess("Meaning sugerido trocado.");
       continue;
     }
 
@@ -206,7 +239,7 @@ export async function reviewCardCandidate({
     const card = createCard({
       sentence,
       word,
-      definition,
+      definition: currentDefinition,
       phonetic,
       literalTranslationPtBr,
     });

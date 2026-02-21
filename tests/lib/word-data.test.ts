@@ -1,17 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const reversoGetContextMock = vi.hoisted(() => vi.fn());
-
-vi.mock("reverso-api", () => {
-  return {
-    default: class MockReverso {
-      getContext(text: string, source: string, target: string) {
-        return reversoGetContextMock(text, source, target);
-      }
-    },
-  };
-});
-
 function jsonResponse(payload: unknown, ok = true): Response {
   const status = ok ? 200 : 404;
   return new Response(JSON.stringify(payload), { status });
@@ -19,7 +7,7 @@ function jsonResponse(payload: unknown, ok = true): Response {
 
 describe("fetchWordData", () => {
   beforeEach(() => {
-    reversoGetContextMock.mockReset();
+    vi.resetModules();
   });
 
   afterEach(() => {
@@ -32,35 +20,31 @@ describe("fetchWordData", () => {
       .mockImplementation(async (input) => {
         const url = String(input);
 
-        if (url.includes("dictionaryapi.dev")) {
-          return jsonResponse(
-            {
-              title: "No Definitions Found",
-            },
-            false,
-          );
-        }
-
-        if (url.includes("api.quotable.io")) {
+        if (url.includes("definition-api.reverso.net")) {
           return jsonResponse({
-            results: [
-              { content: "The pain goes away after a while." },
-              { content: "This one should not be used." },
+            DefsByWord: [
+              {
+                pronounceIpa: "goʊz əˈweɪ",
+                DefsByPos: [
+                  {
+                    Defs: [
+                      {
+                        Def: "to stop being present",
+                        examples: [
+                          { example: "The pain goes away after a while." },
+                          { example: "Small." },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
             ],
           });
         }
 
-        if (url.includes("tatoeba.org")) {
-          return jsonResponse({ results: [] });
-        }
-
         throw new Error(`Unexpected URL: ${url}`);
       });
-
-    reversoGetContextMock.mockResolvedValue({
-      ok: true,
-      examples: [{ source: "Context example should also go away naturally." }],
-    });
 
     vi.stubGlobal("fetch", fetchMock);
     vi.spyOn(Math, "random").mockReturnValue(0);
@@ -69,10 +53,8 @@ describe("fetchWordData", () => {
 
     const result = await fetchWordData("goes away");
 
-    expect(result.definition).toBe(
-      'Definition not found for expression "goes away".',
-    );
-    expect(result.phonetic).toBe("N/A");
+    expect(result.definition).toBe("to stop being present");
+    expect(result.phonetic).toBe("goʊz əˈweɪ");
     expect(result.sentenceCandidates).toEqual([
       "The pain goes away after a while.",
     ]);
@@ -85,7 +67,7 @@ describe("fetchWordData", () => {
       .mockImplementation(async (input) => {
         const url = String(input);
 
-        if (url.includes("dictionaryapi.dev")) {
+        if (url.includes("definition-api.reverso.net")) {
           return jsonResponse(
             {
               title: "No Definitions Found",
@@ -94,17 +76,8 @@ describe("fetchWordData", () => {
           );
         }
 
-        if (url.includes("api.quotable.io") || url.includes("tatoeba.org")) {
-          return jsonResponse({ results: [] });
-        }
-
         throw new Error(`Unexpected URL: ${url}`);
       });
-
-    reversoGetContextMock.mockResolvedValue({
-      ok: true,
-      examples: [],
-    });
 
     vi.stubGlobal("fetch", fetchMock);
 
@@ -121,34 +94,33 @@ describe("fetchWordData", () => {
       .mockImplementation(async (input) => {
         const url = String(input);
 
-        if (url.includes("dictionaryapi.dev")) {
-          return jsonResponse([
-            {
-              phonetic: "/hɛˈləʊ/",
-              meanings: [
-                {
-                  definitions: [
-                    {
-                      definition: "A greeting.",
-                    },
-                  ],
-                },
-              ],
-            },
-          ]);
-        }
-
-        if (url.includes("api.quotable.io") || url.includes("tatoeba.org")) {
-          return jsonResponse({ results: [] });
+        if (url.includes("definition-api.reverso.net")) {
+          return jsonResponse({
+            DefsByWord: [
+              {
+                pronounceIpa: "həˈloʊ",
+                DefsByPos: [
+                  {
+                    Defs: [
+                      {
+                        Def: "A greeting.",
+                        examples: [
+                          {
+                            example:
+                              "People often say hello when meeting someone.",
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          });
         }
 
         throw new Error(`Unexpected URL: ${url}`);
       });
-
-    reversoGetContextMock.mockResolvedValue({
-      ok: true,
-      examples: [{ source: "People often say hello when meeting someone." }],
-    });
 
     vi.stubGlobal("fetch", fetchMock);
     vi.spyOn(Math, "random").mockReturnValue(0);
@@ -163,10 +135,145 @@ describe("fetchWordData", () => {
     expect(result.sentence).toBe(
       "People often say hello when meeting someone.",
     );
-    expect(reversoGetContextMock).toHaveBeenCalledWith(
-      "hello",
-      "english",
-      "portuguese",
+  });
+
+  it("matches inflected and separable phrasal-verb candidates", async () => {
+    const fetchMock = vi
+      .fn<(input: RequestInfo | URL) => Promise<Response>>()
+      .mockImplementation(async (input) => {
+        const url = String(input);
+
+        if (
+          url.includes(
+            "definition-api.reverso.net/v1/api/definitionSearch/en/go%20away",
+          )
+        ) {
+          return jsonResponse({
+            DefsByWord: [
+              {
+                DefsByPos: [
+                  {
+                    Defs: [
+                      {
+                        Def: "to leave",
+                        examples: [
+                          { example: "The pain goes away after a while." },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          });
+        }
+
+        if (
+          url.includes(
+            "definition-api.reverso.net/v1/api/definitionSearch/en/turn%20off",
+          )
+        ) {
+          return jsonResponse({
+            DefsByWord: [
+              {
+                DefsByPos: [
+                  {
+                    Defs: [
+                      {
+                        Def: "to deactivate",
+                        examples: [
+                          {
+                            example:
+                              "Please turn the lights off before leaving.",
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          });
+        }
+
+        throw new Error(`Unexpected URL: ${url}`);
+      });
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(Math, "random").mockReturnValue(0);
+
+    const { fetchWordData } = await import("../../src/lib/word-data.ts");
+
+    const goAwayResult = await fetchWordData("go away");
+    expect(goAwayResult.sentenceCandidates).toContain(
+      "The pain goes away after a while.",
     );
+    expect(goAwayResult.definition).toBe("to leave");
+
+    const turnOffResult = await fetchWordData("turn off");
+    expect(turnOffResult.sentenceCandidates).toContain(
+      "Please turn the lights off before leaving.",
+    );
+  });
+
+  it("supports precise meaning mode with alternatives", async () => {
+    const fetchMock = vi
+      .fn<(input: RequestInfo | URL) => Promise<Response>>()
+      .mockImplementation(async (input) => {
+        const url = String(input);
+
+        if (url.includes("definition-api.reverso.net")) {
+          return jsonResponse({
+            DefsByWord: [
+              {
+                pronounceIpa: "ɡɪv ʌp",
+                DefsByPos: [
+                  {
+                    Defs: [
+                      {
+                        Def: "To do something.",
+                      },
+                      {
+                        Def: "To stop trying or to quit.",
+                        examples: [
+                          {
+                            example:
+                              "He did not give up after the first failure.",
+                          },
+                          {
+                            example: "I will not give up on this project.",
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          });
+        }
+
+        throw new Error(`Unexpected URL: ${url}`);
+      });
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(Math, "random").mockReturnValue(0);
+
+    const { fetchWordData } = await import("../../src/lib/word-data.ts");
+
+    const normalResult = await fetchWordData("give up", {
+      meaningMode: "normal",
+    });
+    expect(normalResult.definition).toBe("To do something.");
+
+    const preciseResult = await fetchWordData("give up", {
+      meaningMode: "precise",
+    });
+    expect(preciseResult.definition).toBe("To stop trying or to quit.");
+    expect(preciseResult.meaningCandidates).toEqual([
+      "To stop trying or to quit.",
+      "To do something.",
+    ]);
+    expect(preciseResult.meaningConfidence).not.toBe("low");
   });
 });
